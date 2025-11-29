@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Player, Theme, Skin, GameState, GameMode, Difficulty, AnalysisResult, MatchRecord } from './types';
+import { Player, Theme, Skin, GameState, GameMode, Difficulty, AnalysisResult, MatchRecord, Quality } from './types';
 import { createEmptyBoard, checkWin, getAIMove, analyzeMatch } from './utils/gameLogic';
 import { audioController } from './utils/audio';
 import Background from './components/Background';
@@ -45,7 +45,12 @@ function App() {
   const [isThinking, setIsThinking] = useState(false);
   const [isReplaying, setIsReplaying] = useState(false);
   const [lastMove, setLastMove] = useState<{r: number, c: number} | null>(null);
+  
+  // Settings
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const [bloomEnabled, setBloomEnabled] = useState(true);
+  const [quality, setQuality] = useState<Quality>(Quality.High);
+
   const [hintPos, setHintPos] = useState<{r: number, c: number} | null>(null);
   const [stats, setStats] = useState(loadStats());
   const [matchHistory, setMatchHistory] = useState<MatchRecord[]>(loadHistory());
@@ -73,7 +78,7 @@ function App() {
     moveHistory: []
   });
 
-  // Audio Toggle
+  // Toggles
   const toggleSound = () => {
     setSoundEnabled(prev => {
       const next = !prev;
@@ -81,6 +86,9 @@ function App() {
       return next;
     });
   };
+
+  const toggleBloom = () => setBloomEnabled(prev => !prev);
+  const toggleQuality = () => setQuality(prev => prev === Quality.High ? Quality.Low : Quality.High);
 
   // Timer Logic
   useEffect(() => {
@@ -298,11 +306,6 @@ function App() {
         // Restore win state (we need to recalculate winning line for visuals)
         if (historyToPlay.length > 0) {
             const last = historyToPlay[historyToPlay.length - 1];
-            // Re-simulate board to find winning line
-            // For simplicity, we can just check win on the final board state
-            // But since we are incrementally building it, we can just set winner.
-            // However, Board component expects a winningLine to show effects.
-            // We can re-run checkWin on the last move.
              setGame(prev => {
                 const line = checkWin(prev.board, last.r, last.c, last.player);
                 return { ...prev, winner: finalWinner, winningLine: line };
@@ -410,9 +413,9 @@ function App() {
         
         // Auto-switch theme based on skin for better aesthetics
         const s = currentPending;
-        if (s === Skin.Dragon || s === Skin.Nebula || s === Skin.Ocean || s === Skin.Cyber) {
+        if (s === Skin.Dragon || s === Skin.Nebula || s === Skin.Ocean || s === Skin.Cyber || s === Skin.Alchemy || s === Skin.Aurora) {
           setTheme(Theme.Night);
-        } else if (s === Skin.Sakura || s === Skin.Glacier || s === Skin.Ink) {
+        } else if (s === Skin.Sakura || s === Skin.Glacier || s === Skin.Ink || s === Skin.Forest || s === Skin.Sunset) {
           setTheme(Theme.Day);
         }
       }
@@ -435,24 +438,30 @@ function App() {
   const isDragon = skin === Skin.Dragon;
 
   let titleClass = "";
+  let glowClass = bloomEnabled ? "drop-shadow-[0_0_25px_rgba(245,158,11,0.8)]" : "";
+  
   if (isDragon) {
-    titleClass = "text-transparent bg-clip-text bg-gradient-to-b from-yellow-300 via-amber-500 to-red-600 drop-shadow-[0_0_25px_rgba(245,158,11,0.8)]";
+    titleClass = `text-transparent bg-clip-text bg-gradient-to-b from-yellow-300 via-amber-500 to-red-600 ${glowClass}`;
   } else if (skin === Skin.Forest) {
-    titleClass = "text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-green-700 drop-shadow-sm";
+    titleClass = `text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-green-700 ${bloomEnabled ? "drop-shadow-sm" : ""}`;
   } else if (skin === Skin.Ocean) {
-    titleClass = "text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-700 drop-shadow-[0_0_10px_rgba(56,189,248,0.5)]";
+    titleClass = `text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-700 ${bloomEnabled ? "drop-shadow-[0_0_10px_rgba(56,189,248,0.5)]" : ""}`;
   } else if (skin === Skin.Sakura) {
-    titleClass = "text-transparent bg-clip-text bg-gradient-to-r from-pink-300 to-rose-500 drop-shadow-sm";
+    titleClass = `text-transparent bg-clip-text bg-gradient-to-r from-pink-300 to-rose-500 ${bloomEnabled ? "drop-shadow-sm" : ""}`;
   } else if (skin === Skin.Nebula) {
-    titleClass = "text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-indigo-600 drop-shadow-[0_0_10px_rgba(167,139,250,0.5)]";
+    titleClass = `text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-indigo-600 ${bloomEnabled ? "drop-shadow-[0_0_10px_rgba(167,139,250,0.5)]" : ""}`;
   } else if (skin === Skin.Sunset) {
-    titleClass = "text-transparent bg-clip-text bg-gradient-to-r from-orange-400 via-amber-600 to-red-800 drop-shadow-sm";
+    titleClass = `text-transparent bg-clip-text bg-gradient-to-r from-orange-400 via-amber-600 to-red-800 ${bloomEnabled ? "drop-shadow-sm" : ""}`;
   } else if (skin === Skin.Glacier) {
-    titleClass = "text-transparent bg-clip-text bg-gradient-to-r from-sky-200 to-blue-400 drop-shadow-[0_0_10px_rgba(255,255,255,0.6)]";
+    titleClass = `text-transparent bg-clip-text bg-gradient-to-r from-sky-200 to-blue-400 ${bloomEnabled ? "drop-shadow-[0_0_10px_rgba(255,255,255,0.6)]" : ""}`;
   } else if (skin === Skin.Cyber) {
-    titleClass = "text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500 drop-shadow-[0_0_10px_cyan]";
+    titleClass = `text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500 ${bloomEnabled ? "drop-shadow-[0_0_10px_cyan]" : ""}`;
   } else if (skin === Skin.Ink) {
     titleClass = "text-transparent bg-clip-text bg-gradient-to-b from-gray-700 to-black drop-shadow-none";
+  } else if (skin === Skin.Alchemy) {
+    titleClass = `text-transparent bg-clip-text bg-gradient-to-r from-amber-600 to-yellow-800 ${bloomEnabled ? "drop-shadow-sm" : ""}`;
+  } else if (skin === Skin.Aurora) {
+    titleClass = `text-transparent bg-clip-text bg-gradient-to-r from-green-300 via-cyan-400 to-blue-500 ${bloomEnabled ? "drop-shadow-[0_0_15px_rgba(34,211,238,0.6)]" : ""}`;
   } else {
     titleClass = theme === Theme.Day 
       ? "text-transparent bg-clip-text bg-gradient-to-r from-stone-600 to-stone-900 drop-shadow-sm" 
@@ -473,6 +482,8 @@ function App() {
     if (skin === Skin.Glacier) return '冰川模式';
     if (skin === Skin.Cyber) return '赛博模式';
     if (skin === Skin.Ink) return '水墨模式';
+    if (skin === Skin.Alchemy) return '炼金模式';
+    if (skin === Skin.Aurora) return '极光模式';
     return '五子连珠';
   };
 
@@ -480,7 +491,7 @@ function App() {
     <div className={`relative min-h-[100dvh] w-full flex flex-col items-center justify-start md:justify-center overflow-x-hidden pt-6 pb-6 md:py-0`}>
       
       {/* Background Layer */}
-      <Background theme={theme} skin={skin} />
+      <Background theme={theme} skin={skin} quality={quality} />
 
       {/* Skin Transition Overlay */}
       {pendingSkin && (
@@ -508,6 +519,10 @@ function App() {
           skin={skin}
           onClose={() => setShowHistory(false)}
           onLoadMatch={handleLoadMatch}
+          onClearHistory={() => {
+            setMatchHistory([]);
+            saveHistory([]);
+          }}
         />
       )}
 
@@ -596,6 +611,8 @@ function App() {
               lastMove={lastMove}
               hintPos={hintPos}
               undoTrigger={undoTrigger}
+              bloomEnabled={bloomEnabled}
+              quality={quality}
             />
           </div>
         </div>
@@ -608,9 +625,13 @@ function App() {
              gameMode={gameMode}
              difficulty={difficulty}
              soundEnabled={soundEnabled}
+             bloomEnabled={bloomEnabled}
+             quality={quality}
              stats={stats}
              toggleTheme={toggleTheme}
              toggleSound={toggleSound}
+             toggleBloom={toggleBloom}
+             toggleQuality={toggleQuality}
              onHint={getHint}
              onShowHistory={() => { audioController.playUI('click'); setShowHistory(true); }}
              setSkin={handleSkinChangeRequest} 

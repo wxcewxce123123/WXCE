@@ -1,6 +1,7 @@
+
 import React from 'react';
-import { RefreshCw, RotateCcw, Palette, Sun, Moon, Sparkles, User, Cpu, Volume2, VolumeX, Lightbulb, Trophy, Video, BrainCircuit, History } from 'lucide-react';
-import { Skin, Theme, GameMode, Difficulty } from '../types';
+import { RefreshCw, RotateCcw, Palette, Sun, Moon, Sparkles, User, Cpu, Volume2, VolumeX, Lightbulb, Trophy, Video, BrainCircuit, History, Zap, Eye } from 'lucide-react';
+import { Skin, Theme, GameMode, Difficulty, Quality } from '../types';
 
 interface ControlsProps {
   theme: Theme;
@@ -8,11 +9,15 @@ interface ControlsProps {
   gameMode: GameMode;
   difficulty: Difficulty;
   soundEnabled: boolean;
+  bloomEnabled: boolean;
+  quality: Quality;
   stats: { wins: number; losses: number; games: number };
   toggleTheme: () => void;
   toggleSound: () => void;
+  toggleBloom: () => void;
+  toggleQuality: () => void;
   onHint: () => void;
-  onShowHistory: () => void; // New Prop
+  onShowHistory: () => void;
   setSkin: (skin: Skin) => void;
   setGameMode: (mode: GameMode) => void;
   setDifficulty: (diff: Difficulty) => void;
@@ -31,11 +36,15 @@ const Controls: React.FC<ControlsProps> = ({
   gameMode,
   difficulty,
   soundEnabled,
+  bloomEnabled,
+  quality,
   stats,
   toggleTheme,
   toggleSound,
+  toggleBloom,
+  toggleQuality,
   onHint,
-  onShowHistory, // New
+  onShowHistory,
   setSkin, 
   setGameMode,
   setDifficulty,
@@ -76,6 +85,8 @@ const Controls: React.FC<ControlsProps> = ({
     { id: Skin.Ink, label: '水墨', color: '#444' },
     { id: Skin.Cyber, label: '赛博', color: '#06b6d4' },
     { id: Skin.Nebula, label: '星云', color: '#4c1d95' },
+    { id: Skin.Alchemy, label: '炼金', color: '#d97706' },
+    { id: Skin.Aurora, label: '极光', color: '#22d3ee' },
     { id: Skin.Dragon, label: '金龙', special: true, color: '#f59e0b' },
   ];
 
@@ -99,6 +110,7 @@ const Controls: React.FC<ControlsProps> = ({
         <button 
           onClick={toggleSound}
           className={`${buttonBase} ${themeStyles} w-10 flex-none px-0`}
+          title={soundEnabled ? "关闭音效" : "开启音效"}
         >
           {soundEnabled ? <Volume2 size={18} /> : <VolumeX size={18} className="opacity-50" />}
         </button>
@@ -121,6 +133,32 @@ const Controls: React.FC<ControlsProps> = ({
         >
           <History size={18} className="text-blue-400" />
         </button>
+      </div>
+
+      {/* Visual Settings Row */}
+      <div className={`p-2 rounded-xl backdrop-blur-md shadow-lg shrink-0 flex gap-2 ${
+        isDragon 
+          ? 'bg-black/50 border border-amber-600/30' 
+          : (theme === Theme.Day ? 'bg-white/40' : 'bg-black/30 border border-white/5')
+      }`}>
+         <button 
+            onClick={toggleBloom}
+            className={`flex-1 py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-all ${
+              bloomEnabled ? activeBtnStyles : inactiveBtnStyles
+            }`}
+            title="泛光特效开关"
+         >
+            <Sparkles size={14} /> 泛光 {bloomEnabled ? '开' : '关'}
+         </button>
+         <button 
+            onClick={toggleQuality}
+            className={`flex-1 py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-all ${
+              quality === Quality.High ? activeBtnStyles : inactiveBtnStyles
+            }`}
+            title="画质切换"
+         >
+            <Zap size={14} /> 画质 {quality === Quality.High ? '高' : '低'}
+         </button>
       </div>
 
       {/* Stats Panel */}

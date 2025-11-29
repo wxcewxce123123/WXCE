@@ -21,6 +21,8 @@ export enum Skin {
   Nebula = 'nebula',
   Sunset = 'sunset',
   Glacier = 'glacier',
+  Alchemy = 'alchemy',
+  Aurora = 'aurora',
 }
 
 export enum GameMode {
@@ -32,6 +34,11 @@ export enum Difficulty {
   Easy = 'easy',
   Medium = 'medium',
   Hard = 'hard',
+}
+
+export enum Quality {
+  High = 'high',
+  Low = 'low',
 }
 
 export interface CellData {

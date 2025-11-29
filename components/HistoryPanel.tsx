@@ -1,15 +1,17 @@
+
 import React from 'react';
 import { MatchRecord, Player, GameMode, Skin } from '../types';
-import { X, Clock, Calendar, Sword, Cpu, Trophy } from 'lucide-react';
+import { X, Clock, Calendar, Sword, Cpu, Trophy, Trash2, PlayCircle } from 'lucide-react';
 
 interface HistoryPanelProps {
   history: MatchRecord[];
   onClose: () => void;
   onLoadMatch: (record: MatchRecord) => void;
+  onClearHistory: () => void;
   skin: Skin;
 }
 
-const HistoryPanel: React.FC<HistoryPanelProps> = ({ history, onClose, onLoadMatch, skin }) => {
+const HistoryPanel: React.FC<HistoryPanelProps> = ({ history, onClose, onLoadMatch, onClearHistory, skin }) => {
   const isDragon = skin === Skin.Dragon;
   const panelBg = isDragon 
     ? "bg-black/90 border-amber-500/30 text-amber-100" 
@@ -29,7 +31,7 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ history, onClose, onLoadMat
       <div className={`w-full max-w-lg rounded-2xl shadow-2xl border backdrop-blur-md flex flex-col max-h-[80vh] overflow-hidden ${panelBg}`}>
         
         {/* Header */}
-        <div className="p-5 border-b border-black/10 flex justify-between items-center">
+        <div className="p-5 border-b border-black/10 flex justify-between items-center shrink-0">
           <div>
             <h2 className="text-xl font-bold font-serif flex items-center gap-2">
               <Clock size={20} className={isDragon ? "text-amber-500" : "text-cyan-500"} />
@@ -37,25 +39,47 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ history, onClose, onLoadMat
             </h2>
             <p className="text-xs opacity-60 mt-1">Match History</p>
           </div>
-          <button onClick={onClose} className="p-2 rounded-full hover:bg-black/10 transition-colors">
-            <X size={20} />
-          </button>
+          <div className="flex gap-2">
+            {history.length > 0 && (
+              <button 
+                onClick={() => {
+                  if(window.confirm('确定要清空所有历史记录吗？')) {
+                    onClearHistory();
+                  }
+                }}
+                className="p-2 rounded-full hover:bg-red-500/10 hover:text-red-500 transition-colors"
+                title="清空记录"
+              >
+                <Trash2 size={18} />
+              </button>
+            )}
+            <button onClick={onClose} className="p-2 rounded-full hover:bg-black/10 transition-colors">
+              <X size={20} />
+            </button>
+          </div>
         </div>
 
         {/* List */}
         <div className="flex-1 overflow-y-auto p-4 space-y-3 scrollbar-hide">
           {history.length === 0 ? (
-             <div className="text-center py-10 opacity-50 text-sm">暂无对局记录</div>
+             <div className="flex flex-col items-center justify-center h-48 opacity-50 space-y-4">
+                <Clock size={48} strokeWidth={1} />
+                <div className="text-sm">暂无对局记录</div>
+             </div>
           ) : (
             history.map((record) => (
               <div 
                 key={record.id}
                 onClick={() => onLoadMatch(record)}
-                className="p-3 rounded-lg cursor-pointer transition-all border border-transparent hover:bg-black/5 hover:border-black/10 flex items-center gap-4 bg-black/5"
+                className={`p-3 rounded-lg cursor-pointer transition-all border border-transparent flex items-center gap-4 group ${
+                  isDragon ? 'hover:bg-amber-900/20 hover:border-amber-500/30 bg-black/20' : 'hover:bg-black/5 hover:border-black/10 bg-black/5'
+                }`}
               >
                 {/* Winner Icon */}
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
-                  record.winner === Player.Black ? 'bg-black text-white' : 'bg-white text-black border border-gray-200'
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 shadow-sm ${
+                  record.winner === Player.Black 
+                    ? 'bg-black text-white' 
+                    : 'bg-white text-black border border-gray-200'
                 }`}>
                   <Trophy size={16} />
                 </div>
@@ -76,6 +100,10 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ history, onClose, onLoadMat
                       <span className="flex items-center gap-1"><Calendar size={10} /> {formatDate(record.timestamp)}</span>
                       <span>{record.moves} 手</span>
                    </div>
+                </div>
+                
+                <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                   <PlayCircle size={20} className={isDragon ? "text-amber-500" : "text-blue-500"} />
                 </div>
               </div>
             ))
