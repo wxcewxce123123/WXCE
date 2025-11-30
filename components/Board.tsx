@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Player, Theme, Skin, Quality } from '../types';
+import { Player, Theme, Skin } from '../types';
 import { BOARD_SIZE } from '../utils/gameLogic';
 
 interface BoardProps {
@@ -14,8 +14,6 @@ interface BoardProps {
   lastMove: {r: number, c: number} | null;
   hintPos: {r: number, c: number} | null;
   undoTrigger: {r: number, c: number, ts: number}[] | null;
-  bloomEnabled: boolean;
-  quality: Quality;
 }
 
 const Board: React.FC<BoardProps> = ({ 
@@ -29,12 +27,11 @@ const Board: React.FC<BoardProps> = ({
   lastMove,
   hintPos,
   undoTrigger,
-  bloomEnabled,
-  quality
 }) => {
   const [hoverPos, setHoverPos] = useState<{r: number, c: number} | null>(null);
   const [skinChanged, setSkinChanged] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const boardRef = useRef<HTMLDivElement>(null);
   const placementParticlesRef = useRef<any[]>([]);
   const victoryParticlesRef = useRef<any[]>([]);
 
@@ -44,6 +41,50 @@ const Board: React.FC<BoardProps> = ({
     const t = setTimeout(() => setSkinChanged(false), 800);
     return () => clearTimeout(t);
   }, [skin]);
+
+  // --- 3D Parallax Tilt Logic ---
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!boardRef.current) return;
+      const rect = boardRef.current.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      
+      const centerX = rect.width / 2;
+      const centerY = rect.height / 2;
+      
+      // Calculate rotation (max 5 degrees)
+      const rotateX = -((y - centerY) / centerY) * 4;
+      const rotateY = ((x - centerX) / centerX) * 4;
+
+      // Update CSS variables for lighting and transform
+      boardRef.current.style.setProperty('--rotate-x', `${rotateX}deg`);
+      boardRef.current.style.setProperty('--rotate-y', `${rotateY}deg`);
+      boardRef.current.style.setProperty('--mouse-x', `${(x / rect.width) * 100}%`);
+      boardRef.current.style.setProperty('--mouse-y', `${(y / rect.height) * 100}%`);
+    };
+
+    const handleMouseLeave = () => {
+      if (!boardRef.current) return;
+      // Reset smoothly
+      boardRef.current.style.setProperty('--rotate-x', `0deg`);
+      boardRef.current.style.setProperty('--rotate-y', `0deg`);
+      boardRef.current.style.setProperty('--mouse-x', `50%`);
+      boardRef.current.style.setProperty('--mouse-y', `50%`);
+    };
+
+    const el = boardRef.current;
+    if (el) {
+      el.addEventListener('mousemove', handleMouseMove);
+      el.addEventListener('mouseleave', handleMouseLeave);
+    }
+    return () => {
+      if (el) {
+        el.removeEventListener('mousemove', handleMouseMove);
+        el.removeEventListener('mouseleave', handleMouseLeave);
+      }
+    };
+  }, []);
 
   // --- Procedural Texture Definitions (SVG Filters) ---
   const TEXTURES = {
@@ -70,7 +111,7 @@ const Board: React.FC<BoardProps> = ({
       const x = lastMove.c * cellSize + cellSize / 2;
       const y = lastMove.r * cellSize + cellSize / 2;
 
-      const count = quality === Quality.High ? 12 : 4;
+      const count = 12;
       for(let i=0; i<count; i++) {
         let color = '#fff';
         if (skin === Skin.Cyber) color = '#0ff';
@@ -95,7 +136,7 @@ const Board: React.FC<BoardProps> = ({
         });
       }
     }
-  }, [lastMove, isGameOver, skin, quality]);
+  }, [lastMove, isGameOver, skin]);
 
   // --- Trigger Undo Particles ---
   useEffect(() => {
@@ -108,7 +149,7 @@ const Board: React.FC<BoardProps> = ({
       undoTrigger.forEach(move => {
         const x = move.c * cellSize + cellSize / 2;
         const y = move.r * cellSize + cellSize / 2;
-        const count = quality === Quality.High ? 15 : 5;
+        const count = 15;
         
         for(let i=0; i<count; i++) {
            let color = '#fff';
@@ -133,7 +174,7 @@ const Board: React.FC<BoardProps> = ({
         }
       });
     }
-  }, [undoTrigger, skin, quality]);
+  }, [undoTrigger, skin]);
 
 
   // --- Combined Effect Loop ---
@@ -230,8 +271,8 @@ const Board: React.FC<BoardProps> = ({
       if (winningLine && points.length > 0) {
         ctx.lineCap = 'round'; ctx.lineJoin = 'round';
         
-        // Spawn particles (Reduced rate if Low Quality)
-        if (isActive && (quality === Quality.High ? frame % 2 === 0 : frame % 6 === 0)) {
+        // Spawn particles (High Quality Rate)
+        if (isActive && frame % 2 === 0) {
            const randPoint = points[Math.floor(Math.random() * points.length)];
            let type = 'confetti';
            if (skin === Skin.Dragon) type = 'ember'; if (skin === Skin.Forest) type = 'leaf'; if (skin === Skin.Ocean) type = 'bubble';
@@ -242,34 +283,39 @@ const Board: React.FC<BoardProps> = ({
         }
 
         ctx.save();
-        // ... (Existing Line Draw Logic - same complexity, canvas handles it fine)
+        
+        // --- Always High Quality Glows ---
+        ctx.shadowBlur = 20;
+        ctx.shadowColor = skin === Skin.Dragon ? '#f59e0b' : (skin === Skin.Cyber ? '#0ff' : '#fff');
+
+        // ... (Existing Line Draw Logic)
         if (skin === Skin.Alchemy) {
-            ctx.shadowBlur = bloomEnabled ? 15 : 0; ctx.shadowColor = '#d97706'; ctx.strokeStyle = '#f59e0b'; ctx.lineWidth = 4;
+            ctx.strokeStyle = '#f59e0b'; ctx.lineWidth = 4;
             ctx.setLineDash([10, 5]); ctx.beginPath(); points.forEach((p, i) => { if(i===0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); }); ctx.stroke();
             // Draw circle nodes
             ctx.setLineDash([]); ctx.fillStyle = '#78350f';
             points.forEach(p => { ctx.beginPath(); ctx.arc(p.x, p.y, 6, 0, Math.PI*2); ctx.fill(); ctx.stroke(); });
         } else if (skin === Skin.Aurora) {
-            ctx.shadowBlur = bloomEnabled ? 30 : 0; ctx.shadowColor = '#22d3ee'; ctx.strokeStyle = '#67e8f9'; ctx.lineWidth = 6;
+            ctx.strokeStyle = '#67e8f9'; ctx.lineWidth = 6;
             ctx.beginPath(); points.forEach((p, i) => { if(i===0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); }); ctx.stroke();
             ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke();
         } else if (skin === Skin.Dragon) {
-             ctx.shadowBlur = bloomEnabled ? (isActive ? 30 + Math.sin(frame * 0.2) * 10 : 15) : 0; ctx.shadowColor = '#f97316'; ctx.strokeStyle = '#fff'; ctx.lineWidth = 4;
+             ctx.strokeStyle = '#fff'; ctx.lineWidth = 4;
              ctx.beginPath(); points.forEach((p, i) => { const jitX = isActive ? (Math.random() - 0.5) * 5 : 0; const jitY = isActive ? (Math.random() - 0.5) * 5 : 0; if(i===0) ctx.moveTo(p.x+jitX, p.y+jitY); else ctx.lineTo(p.x+jitX, p.y+jitY); }); ctx.stroke();
         } else if (skin === Skin.Cyber) {
-             ctx.shadowBlur = bloomEnabled ? 15 : 0; ctx.shadowColor = '#0ff'; ctx.strokeStyle = '#0ff'; ctx.lineWidth = 3; if (isActive) ctx.setLineDash([Math.random()*20 + 10, Math.random()*10]); else ctx.setLineDash([]);
+             ctx.strokeStyle = '#0ff'; ctx.lineWidth = 3; if (isActive) ctx.setLineDash([Math.random()*20 + 10, Math.random()*10]); else ctx.setLineDash([]);
              ctx.beginPath(); points.forEach((p, i) => { if(i===0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); }); ctx.stroke();
         } else if (skin === Skin.Forest) {
-             ctx.strokeStyle = '#4ade80'; ctx.lineWidth = 6; ctx.shadowBlur = bloomEnabled ? 10 : 0; ctx.shadowColor = '#166534';
+             ctx.strokeStyle = '#4ade80'; ctx.lineWidth = 6;
              ctx.beginPath(); ctx.moveTo(points[0].x, points[0].y); for(let i=0; i<points.length-1; i++) { const midX = (points[i].x + points[i+1].x) / 2; const midY = (points[i].y + points[i+1].y) / 2; const cpX = midX + Math.sin(frame * 0.1 + i) * 10; const cpY = midY + Math.cos(frame * 0.1 + i) * 10; ctx.quadraticCurveTo(cpX, cpY, points[i+1].x, points[i+1].y); } ctx.stroke();
         } else if (skin === Skin.Ink) {
              ctx.strokeStyle = '#000'; ctx.lineWidth = 8 + Math.sin(frame*0.1)*2; ctx.globalAlpha = 0.8; ctx.beginPath(); points.forEach((p, i) => { if(i===0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); }); ctx.stroke();
         } else if (skin === Skin.Glacier) {
-             ctx.strokeStyle = '#fff'; ctx.shadowColor = '#bae6fd'; ctx.shadowBlur = bloomEnabled ? 15 : 0; ctx.lineWidth = 4; ctx.beginPath(); points.forEach((p, i) => { if(i===0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); }); ctx.stroke();
+             ctx.strokeStyle = '#fff'; ctx.lineWidth = 4; ctx.beginPath(); points.forEach((p, i) => { if(i===0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); }); ctx.stroke();
              ctx.strokeStyle = '#bae6fd'; ctx.lineWidth = 2; ctx.beginPath(); points.forEach((p, i) => { const jx = (Math.random()-0.5)*4; const jy = (Math.random()-0.5)*4; if(i===0) ctx.moveTo(p.x+jx, p.y+jy); else ctx.lineTo(p.x+jx, p.y+jy); }); ctx.stroke();
         } else {
             let color = '#fff'; if (skin === Skin.Ocean) color = '#38bdf8'; if (skin === Skin.Sakura) color = '#fda4af'; if (skin === Skin.Nebula) color = '#c084fc'; if (skin === Skin.Sunset) color = '#fcd34d'; if (skin === Skin.Classic) color = '#fbbf24';
-            ctx.shadowBlur = bloomEnabled ? 20 : 0; ctx.shadowColor = color; ctx.strokeStyle = color; ctx.lineWidth = 5; ctx.beginPath(); points.forEach((p, i) => { if(i===0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); }); ctx.stroke();
+            ctx.strokeStyle = color; ctx.lineWidth = 5; ctx.beginPath(); points.forEach((p, i) => { if(i===0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); }); ctx.stroke();
         }
         ctx.restore();
 
@@ -283,32 +329,91 @@ const Board: React.FC<BoardProps> = ({
 
     render();
     return () => cancelAnimationFrame(animationId);
-  }, [winningLine, skin, lastMove, undoTrigger, quality, bloomEnabled]); 
+  }, [winningLine, skin, lastMove, undoTrigger]); 
 
   // --- Styles ---
   const getBoardStyles = () => {
+    // Basic Style with 3D Transform
     let styles: React.CSSProperties = {
       position: 'relative', 
-      borderRadius: '8px', 
-      boxShadow: bloomEnabled ? '0 25px 50px -12px rgba(0, 0, 0, 0.5)' : 'none', 
-      transition: 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)', 
-      backgroundBlendMode: 'overlay'
+      borderRadius: '24px', 
+      transition: 'background 0.5s, border 0.5s', // Don't transition transform for snappy tilt
+      backgroundBlendMode: 'overlay',
+      // High-End Glass & Shadows by default
+      backdropFilter: 'blur(24px) saturate(180%)',
+      WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+      boxShadow: `
+        0 30px 60px -12px rgba(0, 0, 0, 0.6), 
+        0 0 0 1px rgba(255, 255, 255, 0.1) inset,
+        0 0 30px rgba(0,0,0,0.2)
+      `,
+      // 3D CSS Variables (controlled by JS)
+      transform: 'perspective(1000px) rotateX(var(--rotate-x, 0deg)) rotateY(var(--rotate-y, 0deg))',
+      transformStyle: 'preserve-3d',
     };
-    if (quality === Quality.Low) styles.backdropFilter = 'none';
 
     switch (skin) {
-      case Skin.Classic: styles.backgroundColor = theme === Theme.Day ? '#e6b36e' : '#5c3d22'; styles.backgroundImage = TEXTURES.wood; styles.border = '12px solid #5d4037'; break;
-      case Skin.Forest: styles.backgroundColor = '#2f4f4f'; styles.backgroundImage = TEXTURES.stone; styles.border = '12px solid #1a2f2f'; break;
-      case Skin.Ocean: styles.backgroundColor = '#001d3d'; styles.backgroundImage = `radial-gradient(circle at 50% 50%, rgba(255,255,255,0.05), transparent 70%), ${TEXTURES.marble}`; styles.border = '8px solid #003566'; break;
-      case Skin.Sakura: styles.backgroundColor = '#fce7f3'; styles.backgroundImage = TEXTURES.marble; styles.border = '12px solid #fbcfe8'; break;
-      case Skin.Nebula: styles.backgroundColor = '#1e1b4b'; styles.backgroundImage = `radial-gradient(circle at center, transparent 0%, #000 100%), ${TEXTURES.stone}`; styles.border = '4px solid #4c1d95'; break;
-      case Skin.Sunset: styles.backgroundColor = '#9a3412'; styles.backgroundImage = TEXTURES.sand; styles.border = '12px solid #7c2d12'; break;
-      case Skin.Glacier: styles.backgroundColor = '#dbeafe'; styles.backgroundImage = TEXTURES.ice; styles.border = '8px solid #bfdbfe'; if (quality === Quality.High) styles.backdropFilter = 'blur(8px)'; break;
-      case Skin.Cyber: styles.backgroundColor = '#000'; styles.backgroundImage = TEXTURES.grid; styles.backgroundSize = '40px 40px'; styles.border = '2px solid #06b6d4'; break;
-      case Skin.Ink: styles.backgroundColor = theme === Theme.Day ? '#f5f5f4' : '#292524'; styles.backgroundImage = TEXTURES.paper; styles.border = theme === Theme.Day ? '1px solid #a8a29e' : '1px solid #444'; break;
-      case Skin.Alchemy: styles.backgroundColor = '#292524'; styles.backgroundImage = TEXTURES.metal; styles.border = '8px solid #78350f'; break;
-      case Skin.Aurora: styles.backgroundColor = '#020617'; styles.backgroundImage = TEXTURES.aurora; styles.border = '4px solid #0ea5e9'; break;
-      case Skin.Dragon: default: styles.backgroundColor = '#1a0500'; styles.backgroundImage = `radial-gradient(circle at 50% 50%, rgba(255, 100, 0, 0.05) 0%, transparent 60%), repeating-linear-gradient(45deg, rgba(0,0,0,0.4) 0px, rgba(0,0,0,0.4) 2px, transparent 2px, transparent 8px), ${TEXTURES.magma}`; styles.border = '4px solid #451a03'; break;
+      case Skin.Classic: 
+        styles.backgroundColor = theme === Theme.Day ? 'rgba(230, 179, 110, 0.9)' : 'rgba(92, 61, 34, 0.9)'; 
+        styles.backgroundImage = TEXTURES.wood; 
+        styles.border = '12px solid rgba(93, 64, 55, 0.8)'; 
+        break;
+      case Skin.Forest: 
+        styles.backgroundColor = 'rgba(47, 79, 79, 0.6)'; 
+        styles.backgroundImage = TEXTURES.stone; 
+        styles.border = '12px solid #1a2f2f'; 
+        break;
+      case Skin.Ocean: 
+        styles.backgroundColor = 'rgba(0, 29, 61, 0.5)'; 
+        styles.backgroundImage = `radial-gradient(circle at 50% 50%, rgba(255,255,255,0.05), transparent 70%), ${TEXTURES.marble}`; 
+        styles.border = '8px solid #003566'; 
+        break;
+      case Skin.Sakura: 
+        styles.backgroundColor = 'rgba(252, 231, 243, 0.7)'; 
+        styles.backgroundImage = TEXTURES.marble; 
+        styles.border = '12px solid #fbcfe8'; 
+        break;
+      case Skin.Nebula: 
+        styles.backgroundColor = 'rgba(30, 27, 75, 0.6)'; 
+        styles.backgroundImage = `radial-gradient(circle at center, transparent 0%, #000 100%), ${TEXTURES.stone}`; 
+        styles.border = '4px solid #4c1d95'; 
+        break;
+      case Skin.Sunset: 
+        styles.backgroundColor = 'rgba(154, 52, 18, 0.9)'; 
+        styles.backgroundImage = TEXTURES.sand; 
+        styles.border = '12px solid #7c2d12'; 
+        break;
+      case Skin.Glacier: 
+        styles.backgroundColor = 'rgba(219, 234, 254, 0.4)'; 
+        styles.backgroundImage = TEXTURES.ice; 
+        styles.border = '8px solid rgba(191, 219, 254, 0.5)'; 
+        break;
+      case Skin.Cyber: 
+        styles.backgroundColor = 'rgba(0, 0, 0, 0.8)'; 
+        styles.backgroundImage = TEXTURES.grid; 
+        styles.backgroundSize = '40px 40px'; 
+        styles.border = '2px solid #06b6d4'; 
+        break;
+      case Skin.Ink: 
+        styles.backgroundColor = theme === Theme.Day ? 'rgba(245, 245, 244, 0.9)' : 'rgba(41, 37, 36, 0.9)'; 
+        styles.backgroundImage = TEXTURES.paper; 
+        styles.border = theme === Theme.Day ? '1px solid #a8a29e' : '1px solid #444'; 
+        break;
+      case Skin.Alchemy: 
+        styles.backgroundColor = 'rgba(41, 37, 36, 0.9)'; 
+        styles.backgroundImage = TEXTURES.metal; 
+        styles.border = '8px solid #78350f'; 
+        break;
+      case Skin.Aurora: 
+        styles.backgroundColor = 'rgba(2, 6, 23, 0.5)'; 
+        styles.backgroundImage = TEXTURES.aurora; 
+        styles.border = '4px solid #0ea5e9'; 
+        break;
+      case Skin.Dragon: default: 
+        styles.backgroundColor = 'rgba(26, 5, 0, 0.9)'; 
+        styles.backgroundImage = `radial-gradient(circle at 50% 50%, rgba(255, 100, 0, 0.05) 0%, transparent 60%), repeating-linear-gradient(45deg, rgba(0,0,0,0.4) 0px, rgba(0,0,0,0.4) 2px, transparent 2px, transparent 8px), ${TEXTURES.magma}`; 
+        styles.border = '4px solid #451a03'; 
+        break;
     }
     return styles;
   };
@@ -332,24 +437,20 @@ const Board: React.FC<BoardProps> = ({
       case Skin.Forest: style.background = isBlack ? 'radial-gradient(circle at 30% 30%, #6ee7b7 0%, #047857 50%, #022c22 100%)' : 'radial-gradient(circle at 30% 30%, #fff 0%, #ecfccb 60%, #d9f99d 100%)'; break;
       case Skin.Ocean: style.background = isBlack ? 'radial-gradient(circle at 35% 35%, #7dd3fc 0%, #0c4a6e 60%, #000 100%)' : 'radial-gradient(circle at 35% 35%, #fff 0%, #bae6fd 50%, #38bdf8 100%)'; break;
       case Skin.Sakura: style.background = isBlack ? 'radial-gradient(circle at 35% 35%, #fca5a5 0%, #be123c 60%, #4c0519 100%)' : 'radial-gradient(circle at 35% 35%, #fff 0%, #fce7f3 40%, #fbcfe8 100%)'; break;
-      case Skin.Nebula: style.background = isBlack ? 'black' : 'radial-gradient(circle at 50% 50%, #fff 20%, #a78bfa 50%, #4c1d95 100%)'; if (isBlack && bloomEnabled) style.border = '1px solid #7c3aed'; break;
+      case Skin.Nebula: style.background = isBlack ? 'black' : 'radial-gradient(circle at 50% 50%, #fff 20%, #a78bfa 50%, #4c1d95 100%)'; if (isBlack) style.border = '1px solid #7c3aed'; break;
       case Skin.Sunset: style.background = isBlack ? 'linear-gradient(135deg, #444 0%, #111 100%)' : 'radial-gradient(circle at 30% 30%, #fcd34d 0%, #b45309 80%, #78350f 100%)'; break;
       case Skin.Glacier: style.background = isBlack ? 'radial-gradient(circle at 30% 30%, #93c5fd 0%, #1e40af 100%)' : 'linear-gradient(135deg, #fff 0%, #dbeafe 50%, #bfdbfe 100%)'; break;
-      case Skin.Cyber: style.background = isBlack ? 'transparent' : '#22d3ee'; if (isBlack && bloomEnabled) style.border = '2px solid #d946ef'; else if (isBlack) style.border = '2px solid #888'; break;
+      case Skin.Cyber: style.background = isBlack ? 'transparent' : '#22d3ee'; if (isBlack) style.border = '2px solid #d946ef'; else if (isBlack) style.border = '2px solid #888'; break;
       case Skin.Ink: style.background = isBlack ? 'radial-gradient(circle at 40% 40%, #444 0%, #000 100%)' : '#f5f5f4'; if (!isBlack) style.border = '1px solid #d6d3d1'; break;
-      case Skin.Alchemy: style.background = isBlack ? 'radial-gradient(circle at 40% 40%, #57534e 0%, #292524 100%)' : 'radial-gradient(circle at 40% 40%, #fbbf24 0%, #b45309 100%)'; if(isBlack && bloomEnabled) style.border = '2px solid #a8a29e'; break;
+      case Skin.Alchemy: style.background = isBlack ? 'radial-gradient(circle at 40% 40%, #57534e 0%, #292524 100%)' : 'radial-gradient(circle at 40% 40%, #fbbf24 0%, #b45309 100%)'; if(isBlack) style.border = '2px solid #a8a29e'; break;
       case Skin.Aurora: 
         if (isBlack) {
            style.backgroundColor = 'rgba(0,0,0,0.5)';
-           if (bloomEnabled) {
-             style.border = '1px solid #22d3ee';
-             style.boxShadow = '0 0 15px rgba(34, 211, 238, 0.6)';
-           } else {
-             style.border = '1px solid #555';
-           }
+           style.border = '1px solid #22d3ee';
+           style.boxShadow = '0 0 15px rgba(34, 211, 238, 0.6)';
         } else {
            style.backgroundColor = 'rgba(255,255,255,0.8)';
-           if (bloomEnabled) style.boxShadow = '0 0 15px rgba(255, 255, 255, 0.8)';
+           style.boxShadow = '0 0 15px rgba(255, 255, 255, 0.8)';
         }
         break;
       case Skin.Dragon: style.background = isBlack ? 'radial-gradient(circle at 40% 40%, #444 0%, #111 60%, #000 100%)' : 'radial-gradient(circle at 35% 35%, #fff 0%, #fcd34d 40%, #d97706 100%)'; break;
@@ -358,11 +459,25 @@ const Board: React.FC<BoardProps> = ({
   };
 
   return (
-    <div className={`p-1 sm:p-4 md:p-6 rounded-xl backdrop-blur-sm transition-colors duration-700 w-full flex justify-center ${
+    <div className={`p-1 sm:p-4 md:p-6 rounded-xl backdrop-blur-sm transition-colors duration-700 w-full flex justify-center perspective-[2000px] ${
       skin === Skin.Dragon ? 'bg-black/80' : (theme === Theme.Day ? 'bg-white/20' : 'bg-black/20')
     }`}>
-      <div className={`w-full max-w-[600px] aspect-square p-3 sm:p-6 md:p-8 relative ${skinChanged ? 'animate-[land_0.8s_ease-out]' : ''}`} style={getBoardStyles()}>
-        {skin === Skin.Dragon && bloomEnabled && (
+      {/* Board Container with Ref for Tilt */}
+      <div 
+        ref={boardRef}
+        className={`w-full max-w-[600px] aspect-square p-3 sm:p-6 md:p-8 relative ${skinChanged ? 'animate-[land_0.8s_ease-out]' : ''}`} 
+        style={getBoardStyles()}
+      >
+        {/* Ambient Light Overlay */}
+        <div 
+          className="absolute inset-0 z-20 pointer-events-none rounded-[24px]" 
+          style={{
+            background: `radial-gradient(circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(255,255,255,0.15) 0%, transparent 60%)`,
+            mixBlendMode: 'overlay'
+          }}
+        />
+
+        {skin === Skin.Dragon && (
           <>
             <div className="absolute -top-1 -left-1 w-12 h-12 border-t-4 border-l-4 border-amber-500 rounded-tl-lg shadow-[0_0_10px_#f59e0b]" />
             <div className="absolute -top-1 -right-1 w-12 h-12 border-t-4 border-r-4 border-amber-500 rounded-tr-lg shadow-[0_0_10px_#f59e0b]" />
@@ -370,8 +485,10 @@ const Board: React.FC<BoardProps> = ({
             <div className="absolute -bottom-1 -right-1 w-12 h-12 border-b-4 border-r-4 border-amber-500 rounded-br-lg shadow-[0_0_10px_#f59e0b]" />
           </>
         )}
+        
         <canvas ref={canvasRef} className="absolute inset-0 z-30 pointer-events-none w-full h-full" />
-        <div className="relative w-full h-full grid cursor-crosshair" style={{ display: 'grid', gridTemplateColumns: `repeat(${BOARD_SIZE}, 1fr)`, gridTemplateRows: `repeat(${BOARD_SIZE}, 1fr)` }} onMouseLeave={() => setHoverPos(null)}>
+        
+        <div className="relative w-full h-full grid cursor-crosshair z-10" style={{ display: 'grid', gridTemplateColumns: `repeat(${BOARD_SIZE}, 1fr)`, gridTemplateRows: `repeat(${BOARD_SIZE}, 1fr)` }} onMouseLeave={() => setHoverPos(null)}>
           {hoverPos && !isGameOver && (
              <>
                <div className="absolute w-full h-[1px] bg-white/30 z-0 pointer-events-none transition-all duration-75 ease-out" style={{ top: `${(hoverPos.r * 100) / BOARD_SIZE + (50 / BOARD_SIZE)}%` }} />
@@ -391,8 +508,8 @@ const Board: React.FC<BoardProps> = ({
           </div>
           {hintPos && !isGameOver && (
             <div className="absolute z-20 pointer-events-none w-full h-full transform -translate-x-1/2 -translate-y-1/2 flex items-center justify-center" style={{ top: `${(hintPos.r * 100) / BOARD_SIZE + (50 / BOARD_SIZE)}%`, left: `${(hintPos.c * 100) / BOARD_SIZE + (50 / BOARD_SIZE)}%`, width: `${100/BOARD_SIZE}%`, height: `${100/BOARD_SIZE}%` }}>
-              <div className={`w-[150%] h-[150%] rounded-full border-2 border-white/80 animate-[ping_1.5s_ease-in-out_infinite] opacity-70 ${bloomEnabled ? 'shadow-[0_0_10px_#fff]' : ''}`} />
-              <div className={`absolute w-2 h-2 bg-white rounded-full ${bloomEnabled ? 'shadow-[0_0_10px_#fff]' : ''}`} />
+              <div className={`w-[150%] h-[150%] rounded-full border-2 border-white/80 animate-[ping_1.5s_ease-in-out_infinite] opacity-70 shadow-[0_0_10px_#fff]`} />
+              <div className={`absolute w-2 h-2 bg-white rounded-full shadow-[0_0_10px_#fff]`} />
             </div>
           )}
           {board.map((row, r) => (
@@ -409,7 +526,7 @@ const Board: React.FC<BoardProps> = ({
 
               if (isWinner) {
                 finalClassName += ' z-20 transition-transform duration-500 scale-110';
-                if (bloomEnabled) finalStyle.boxShadow = `0 0 20px ${skin === Skin.Dragon ? '#f59e0b' : '#fff'}`;
+                finalStyle.boxShadow = `0 0 20px ${skin === Skin.Dragon ? '#f59e0b' : '#fff'}`;
               } else if (isLoser) {
                 if (skin === Skin.Dragon) finalClassName += ' brightness-[0.2] grayscale contrast-150';
                 else if (skin === Skin.Glacier) finalClassName += ' brightness-[1.5] opacity-50 contrast-50 hue-rotate-180';
@@ -426,7 +543,7 @@ const Board: React.FC<BoardProps> = ({
                   {cellState !== Player.None && stoneProps && (
                     <div className={finalClassName} style={finalStyle}>
                       {isLastMove && (
-                        <div className={`absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[30%] h-[30%] rounded-full opacity-80 ${cellState === Player.Black ? 'bg-white/50' : 'bg-black/50'} ${bloomEnabled ? (cellState === Player.Black ? 'shadow-[0_0_5px_#fff]' : 'shadow-[0_0_5px_#000]') : ''} ${skin === Skin.Cyber && bloomEnabled ? 'bg-cyan-400 shadow-[0_0_10px_cyan]' : ''}`} />
+                        <div className={`absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[30%] h-[30%] rounded-full opacity-80 ${cellState === Player.Black ? 'bg-white/50' : 'bg-black/50'} ${cellState === Player.Black ? 'shadow-[0_0_5px_#fff]' : 'shadow-[0_0_5px_#000]'} ${skin === Skin.Cyber ? 'bg-cyan-400 shadow-[0_0_10px_cyan]' : ''}`} />
                       )}
                     </div>
                   )}

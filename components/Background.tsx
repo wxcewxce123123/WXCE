@@ -1,14 +1,13 @@
 
 import React, { useRef, useEffect } from 'react';
-import { Theme, Skin, Quality } from '../types';
+import { Theme, Skin } from '../types';
 
 interface BackgroundProps {
   theme: Theme;
   skin: Skin;
-  quality: Quality;
 }
 
-const Background: React.FC<BackgroundProps> = ({ theme, skin, quality }) => {
+const Background: React.FC<BackgroundProps> = ({ theme, skin }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -27,6 +26,34 @@ const Background: React.FC<BackgroundProps> = ({ theme, skin, quality }) => {
 
     window.addEventListener('resize', resizeCanvas);
     resizeCanvas();
+
+    // --- Optimization: Pre-render Cache for Runes ---
+    // Text rendering with shadows is extremely expensive in Canvas (CPU bottleneck). 
+    // We pre-render unique runes to small off-screen canvases to drastically improve performance 
+    // for the Alchemy skin without removing any visual effects.
+    const runeCache: Record<string, HTMLCanvasElement> = {};
+    const runesList = ['⚙', '⚗', '⚡', '⌬', '⚔', '⏣'];
+    
+    // Always pre-render if skin matches to ensure readiness
+    if (skin === Skin.Alchemy) {
+      runesList.forEach(char => {
+        const c = document.createElement('canvas');
+        const size = 64; // High resolution for crisp scaling
+        c.width = size;
+        c.height = size;
+        const cCtx = c.getContext('2d');
+        if (cCtx) {
+          cCtx.font = '40px serif';
+          cCtx.textAlign = 'center';
+          cCtx.textBaseline = 'middle';
+          cCtx.fillStyle = '#b45309';
+          cCtx.shadowColor = '#d97706';
+          cCtx.shadowBlur = 10; // Bake the expensive shadow into the image
+          cCtx.fillText(char, size/2, size/2);
+        }
+        runeCache[char] = c;
+      });
+    }
 
     // --- Particle Classes ---
 
@@ -218,12 +245,23 @@ const Background: React.FC<BackgroundProps> = ({ theme, skin, quality }) => {
         if(this.y < -30) { this.y = canvas!.height + 20; this.x = Math.random() * canvas!.width; }
       }
       draw() {
-        if (!ctx) return; ctx.save();
-        ctx.translate(this.x, this.y); ctx.rotate(this.rotation);
-        ctx.fillStyle = '#b45309'; // Bronze
-        ctx.shadowColor = '#d97706'; ctx.shadowBlur = 5;
-        ctx.font = `${this.size}px serif`;
-        ctx.fillText(this.char, -this.size/2, this.size/2);
+        if (!ctx) return; 
+        ctx.save();
+        ctx.translate(this.x, this.y); 
+        ctx.rotate(this.rotation);
+        
+        // Optimized Drawing: Use Cache if available
+        if (runeCache[this.char]) {
+           // Draw image instead of text for 10x performance boost
+           const cache = runeCache[this.char];
+           ctx.drawImage(cache, -this.size/2, -this.size/2, this.size, this.size);
+        } else {
+           // Fallback (slow)
+           ctx.fillStyle = '#b45309';
+           ctx.shadowColor = '#d97706'; ctx.shadowBlur = 5;
+           ctx.font = `${this.size}px serif`;
+           ctx.fillText(this.char, -this.size/2, this.size/2);
+        }
         ctx.restore();
       }
     }
@@ -244,9 +282,8 @@ const Background: React.FC<BackgroundProps> = ({ theme, skin, quality }) => {
     const initParticles = () => {
       particles = [];
       const mobile = window.innerWidth < 768;
-      // High Quality: Mobile 40, Desktop 100
-      // Low Quality: Mobile 10, Desktop 30
-      let count = quality === Quality.High ? (mobile ? 40 : 100) : (mobile ? 10 : 30);
+      // High Quality Default: Mobile 40, Desktop 100
+      let count = mobile ? 40 : 100;
       
       for (let i = 0; i < count; i++) {
         if (skin === Skin.Dragon) particles.push(new GoldenEmber());
@@ -327,7 +364,7 @@ const Background: React.FC<BackgroundProps> = ({ theme, skin, quality }) => {
       window.removeEventListener('resize', resizeCanvas);
       cancelAnimationFrame(animationFrameId);
     };
-  }, [theme, skin, quality]);
+  }, [theme, skin]);
 
   return (
     <canvas

@@ -100,6 +100,64 @@ class AudioController {
         osc.stop(t + 0.2);
         break;
 
+      case Skin.Alchemy: // Metal/Steampunk
+        // Metallic clank + Gear tick
+        osc.type = 'square'; // Harmonic rich
+        osc.frequency.setValueAtTime(440, t);
+        osc.frequency.exponentialRampToValueAtTime(100, t + 0.2);
+        
+        filter.type = 'bandpass'; // Metallic resonance
+        filter.frequency.setValueAtTime(800, t);
+        filter.Q.value = 5;
+
+        gain.gain.setValueAtTime(0.4, t);
+        gain.gain.exponentialRampToValueAtTime(0.01, t + 0.25);
+        
+        osc.start(t);
+        osc.stop(t + 0.25);
+
+        // Gear click
+        const gear = this.ctx.createOscillator();
+        const gearGain = this.ctx.createGain();
+        gear.connect(gearGain);
+        gearGain.connect(this.ctx.destination);
+        gear.type = 'sawtooth';
+        gear.frequency.setValueAtTime(2500, t);
+        gearGain.gain.setValueAtTime(0.15, t);
+        gearGain.gain.exponentialRampToValueAtTime(0.01, t + 0.05);
+        gear.start(t);
+        gear.stop(t + 0.05);
+        break;
+
+      case Skin.Aurora: // Ethereal/Space
+        // Soft sine sweep + shimmer
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(1000, t); // High start
+        osc.frequency.linearRampToValueAtTime(500, t + 0.4); // Glide down
+        
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(3000, t);
+        
+        gain.gain.setValueAtTime(0.15, t);
+        gain.gain.exponentialRampToValueAtTime(0.01, t + 0.6); // Long tail
+        
+        osc.start(t);
+        osc.stop(t + 0.6);
+        
+        // Detuned layer for "shimmer"
+        const shimmer = this.ctx.createOscillator();
+        const shimmerGain = this.ctx.createGain();
+        shimmer.connect(shimmerGain);
+        shimmerGain.connect(this.ctx.destination);
+        shimmer.type = 'triangle';
+        shimmer.frequency.setValueAtTime(1005, t);
+        shimmer.frequency.linearRampToValueAtTime(505, t + 0.4);
+        shimmerGain.gain.setValueAtTime(0.1, t);
+        shimmerGain.gain.exponentialRampToValueAtTime(0.01, t + 0.6);
+        shimmer.start(t);
+        shimmer.stop(t + 0.6);
+        break;
+
       case Skin.Dragon: // Heavy Stone/Metal
         // Deep impact + metallic ring
         osc.type = 'square';

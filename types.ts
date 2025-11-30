@@ -36,11 +36,6 @@ export enum Difficulty {
   Hard = 'hard',
 }
 
-export enum Quality {
-  High = 'high',
-  Low = 'low',
-}
-
 export interface CellData {
   row: number;
   col: number;
