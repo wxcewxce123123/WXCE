@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Player, Theme, Skin } from '../types';
 import { BOARD_SIZE } from '../utils/gameLogic';
@@ -287,32 +288,9 @@ const Board: React.FC<BoardProps> = React.memo(({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const rect = canvas.getBoundingClientRect();
-    const dpr = window.devicePixelRatio || 1;
-    
-    // Ensure canvas dimensions match the grid container
-    if (canvas.width !== rect.width * dpr || canvas.height !== rect.height * dpr) {
-        canvas.width = rect.width * dpr;
-        canvas.height = rect.height * dpr;
-    }
-    
-    // Reset transform before drawing
-    ctx.setTransform(1, 0, 0, 1, 0, 0); // Reset scale
-    ctx.scale(dpr, dpr);
-
-    const cellSize = rect.width / BOARD_SIZE;
-
+    // Reset logic to handle dynamic resizing inside loop
     let animationId: number;
     let frame = 0;
-    
-    // Recalculate Winning Line Points based on correct cellSize
-    let points: {x: number, y: number}[] = [];
-    if (winningLine) {
-        points = winningLine.map(([r, c]) => ({
-            x: c * cellSize + cellSize / 2,
-            y: r * cellSize + cellSize / 2
-        }));
-    }
 
     // --- Inner Particle Class for Rendering ---
     class GameParticle {
@@ -359,6 +337,29 @@ const Board: React.FC<BoardProps> = React.memo(({
 
     const render = () => {
         frame++;
+        const rect = canvas.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+        
+        // Dynamic resize check
+        if (canvas.width !== rect.width * dpr || canvas.height !== rect.height * dpr) {
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            // Restore scale after resize clears context
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            ctx.scale(dpr, dpr);
+        }
+
+        const cellSize = rect.width / BOARD_SIZE;
+        
+        // Recalculate Winning Line Points based on live cellSize to prevent offsets
+        let points: {x: number, y: number}[] = [];
+        if (winningLine) {
+            points = winningLine.map(([r, c]) => ({
+                x: c * cellSize + cellSize / 2,
+                y: r * cellSize + cellSize / 2
+            }));
+        }
+
         ctx.clearRect(0, 0, rect.width, rect.height);
         
         // 1. Render Placement/Undo Particles
