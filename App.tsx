@@ -9,7 +9,7 @@ import Controls from './components/Controls';
 import SkinTransition from './components/SkinTransition';
 import AnalysisPanel from './components/AnalysisPanel';
 import HistoryPanel from './components/HistoryPanel';
-import { Play, Cpu } from 'lucide-react';
+import { Play, Cpu, ArrowRight } from 'lucide-react';
 
 const loadStats = () => {
   try {
@@ -35,6 +35,15 @@ const saveHistory = (history: MatchRecord[]) => {
   localStorage.setItem('gomoku_history', JSON.stringify(history));
 };
 
+const ZEN_QUOTES = [
+  "胜负由心，落子无悔。",
+  "Quiet the mind, and the soul will speak.",
+  "In the midst of movement and chaos, keep stillness inside of you.",
+  "The journey of a thousand miles begins with a single step.",
+  "Empty your mind, be formless, shapeless — like water.",
+  "棋道如人生，一步一修行。"
+];
+
 function App() {
   const [theme, setTheme] = useState<Theme>(Theme.Day);
   const [skin, setSkin] = useState<Skin>(Skin.Classic);
@@ -59,10 +68,10 @@ function App() {
   const replayIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   
   // Track processed win to avoid duplicate stats updates in StrictMode
-  // We use a unique ID derived from move history length + last move coordinate to be very specific
   const processedWinRef = useRef<string>("");
 
   const [pendingSkin, setPendingSkin] = useState<Skin | null>(null);
+  const [quote] = useState(ZEN_QUOTES[Math.floor(Math.random() * ZEN_QUOTES.length)]);
 
   const [game, setGame] = useState<GameState>({
     board: createEmptyBoard(),
@@ -337,8 +346,6 @@ function App() {
     if (targetHistoryIndex < 0) return;
 
     const movesToRemove = game.moveHistory.slice(-steps);
-    // Add unique ID to trigger effect even for same coordinates if needed, 
-    // but timestamp should be enough.
     setUndoTrigger(movesToRemove.map(m => ({ r: m.r, c: m.c, ts: Date.now() })));
 
     const previousBoard = game.history[targetHistoryIndex];
@@ -421,28 +428,12 @@ function App() {
   
   if (isDragon) {
     titleClass = `text-transparent bg-clip-text bg-gradient-to-b from-yellow-300 via-amber-500 to-red-600 ${glowClass}`;
-  } else if (skin === Skin.Forest) {
-    titleClass = `text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-green-700 drop-shadow-sm`;
-  } else if (skin === Skin.Ocean) {
-    titleClass = `text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-700 drop-shadow-[0_0_10px_rgba(56,189,248,0.5)]`;
-  } else if (skin === Skin.Sakura) {
-    titleClass = `text-transparent bg-clip-text bg-gradient-to-r from-pink-300 to-rose-500 drop-shadow-sm`;
-  } else if (skin === Skin.Nebula) {
-    titleClass = `text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-indigo-600 drop-shadow-[0_0_10px_rgba(167,139,250,0.5)]`;
-  } else if (skin === Skin.Sunset) {
-    titleClass = `text-transparent bg-clip-text bg-gradient-to-r from-orange-400 via-amber-600 to-red-800 drop-shadow-sm`;
-  } else if (skin === Skin.Glacier) {
-    titleClass = `text-transparent bg-clip-text bg-gradient-to-r from-sky-200 to-blue-400 drop-shadow-[0_0_10px_rgba(255,255,255,0.6)]`;
-  } else if (skin === Skin.Cyber) {
-    titleClass = `text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500 drop-shadow-[0_0_10px_cyan]`;
-  } else if (skin === Skin.Ink) {
-    titleClass = "text-transparent bg-clip-text bg-gradient-to-b from-gray-700 to-black drop-shadow-none";
-  } else if (skin === Skin.Alchemy) {
-    titleClass = `text-transparent bg-clip-text bg-gradient-to-r from-amber-600 to-yellow-800 drop-shadow-sm`;
-  } else if (skin === Skin.Aurora) {
-    titleClass = `text-transparent bg-clip-text bg-gradient-to-r from-green-300 via-cyan-400 to-blue-500 drop-shadow-[0_0_15px_rgba(34,211,238,0.6)]`;
   } else if (skin === Skin.Celestia) {
     titleClass = `text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-yellow-400 to-amber-500 drop-shadow-[0_0_10px_rgba(251,191,36,0.6)]`;
+  } else if (skin === Skin.Cyber) {
+    titleClass = `text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500 drop-shadow-[0_0_10px_cyan]`;
+  } else if (skin === Skin.Aurora) {
+    titleClass = `text-transparent bg-clip-text bg-gradient-to-r from-green-300 via-cyan-400 to-blue-500 drop-shadow-[0_0_15px_rgba(34,211,238,0.6)]`;
   } else {
     titleClass = theme === Theme.Day 
       ? "text-transparent bg-clip-text bg-gradient-to-r from-stone-600 to-stone-900 drop-shadow-sm" 
@@ -455,19 +446,24 @@ function App() {
   
   const getModeTitle = () => {
     if (skin === Skin.Dragon) return '金龙至尊';
-    if (skin === Skin.Forest) return '幽篁模式';
-    if (skin === Skin.Ocean) return '沧海模式';
-    if (skin === Skin.Sakura) return '落樱模式';
-    if (skin === Skin.Nebula) return '星云模式';
-    if (skin === Skin.Sunset) return '大漠模式';
-    if (skin === Skin.Glacier) return '冰川模式';
-    if (skin === Skin.Cyber) return '赛博模式';
-    if (skin === Skin.Ink) return '水墨模式';
-    if (skin === Skin.Alchemy) return '炼金模式';
-    if (skin === Skin.Aurora) return '极光模式';
     if (skin === Skin.Celestia) return '天穹模式';
+    if (skin === Skin.Cyber) return '赛博模式';
     return '五子连珠';
   };
+
+  // Start Screen Styling Helper
+  const getStartScreenColors = () => {
+    switch (skin) {
+      case Skin.Dragon: return { ring: 'border-amber-600/30', glow: 'shadow-amber-500/20', text: 'text-amber-100' };
+      case Skin.Celestia: return { ring: 'border-yellow-400/30', glow: 'shadow-yellow-400/20', text: 'text-yellow-50' };
+      case Skin.Cyber: return { ring: 'border-cyan-500/30', glow: 'shadow-cyan-500/20', text: 'text-cyan-50' };
+      case Skin.Forest: return { ring: 'border-emerald-500/30', glow: 'shadow-emerald-500/20', text: 'text-emerald-50' };
+      case Skin.Sakura: return { ring: 'border-pink-400/30', glow: 'shadow-pink-400/20', text: 'text-pink-50' };
+      case Skin.Ink: return { ring: 'border-gray-800/20', glow: 'shadow-gray-500/10', text: 'text-gray-900' };
+      default: return { ring: 'border-white/10', glow: 'shadow-white/10', text: 'text-white' };
+    }
+  };
+  const startStyles = getStartScreenColors();
 
   return (
     <div className={`relative min-h-[100dvh] w-full flex flex-col items-center justify-start md:justify-center overflow-x-hidden pt-6 pb-6 md:py-0`}>
@@ -503,31 +499,67 @@ function App() {
         />
       )}
 
+      {/* --- RE-DESIGNED START SCREEN --- */}
       <div 
-        className={`absolute inset-0 z-50 flex flex-col items-center justify-center transition-all duration-1000 ${
-          hasStarted ? 'opacity-0 pointer-events-none scale-110' : 'opacity-100 scale-100'
+        className={`fixed inset-0 z-50 flex flex-col items-center justify-center transition-all duration-1000 ease-in-out ${
+          hasStarted ? 'opacity-0 pointer-events-none scale-150 blur-xl' : 'opacity-100 scale-100'
         }`}
       >
-        <div className="text-center space-y-6 md:space-y-8 p-6 md:p-10 rounded-3xl backdrop-blur-sm bg-white/10 border border-white/20 shadow-2xl mx-4">
-          <h1 className={`text-5xl md:text-8xl font-bold font-serif tracking-wider ${titleClass} animate-[float_4s_ease-in-out_infinite]`}>
-            五子连珠
-          </h1>
-          <p className={`text-base md:text-xl tracking-[0.5em] font-light ${statusClass}`}>
-            ZEN GOMOKU
-          </p>
-          
-          <button 
-            onClick={startGame}
-            className={`group relative px-8 py-3 md:px-10 md:py-4 text-lg md:text-xl font-bold tracking-widest uppercase transition-all duration-300 rounded-full overflow-hidden ${
-              theme === Theme.Day 
-                ? 'bg-stone-800 text-white hover:bg-stone-700 shadow-xl hover:shadow-2xl' 
-                : 'bg-transparent border-2 border-cyan-400 text-cyan-400 hover:bg-cyan-400 hover:text-black shadow-[0_0_15px_rgba(34,211,238,0.4)]'
-            }`}
-          >
-            <span className="relative z-10 flex items-center gap-3">
-              <Play className="w-5 h-5 fill-current" /> 进入对弈
-            </span>
-          </button>
+        {/* Background Overlay specifically for Start Screen readability */}
+        <div className={`absolute inset-0 transition-colors duration-1000 ${
+           skin === Skin.Ink && theme === Theme.Day ? 'bg-white/40' : 'bg-black/30'
+        } backdrop-blur-[2px]`} />
+
+        <div className="relative z-10 flex flex-col items-center">
+            {/* Geometric Rotating Rings */}
+            <div className={`absolute w-[60vh] h-[60vh] md:w-[600px] md:h-[600px] rounded-full border ${startStyles.ring} animate-[spin_30s_linear_infinite] pointer-events-none`} />
+            <div className={`absolute w-[50vh] h-[50vh] md:w-[500px] md:h-[500px] rounded-full border border-dashed ${startStyles.ring} animate-[spin_40s_linear_infinite_reverse] opacity-60 pointer-events-none`} />
+            <div className={`absolute w-[70vh] h-[70vh] md:w-[700px] md:h-[700px] rounded-full border ${startStyles.ring} opacity-20 animate-[pulse_5s_ease-in-out_infinite] pointer-events-none`} />
+
+            {/* Main Typographic Lockup */}
+            <div className="flex flex-col items-center text-center space-y-6 md:space-y-8 transform hover:scale-105 transition-transform duration-700">
+               <h1 className={`text-7xl md:text-9xl font-serif font-bold tracking-widest ${titleClass} drop-shadow-2xl relative`}>
+                  无双
+                  <span className="absolute -top-4 -right-4 text-xs md:text-sm font-sans font-normal opacity-50 tracking-normal text-current border border-current px-2 py-0.5 rounded-full">
+                     Ver 2.0
+                  </span>
+               </h1>
+               
+               <div className={`h-px w-32 md:w-48 bg-current opacity-50 ${startStyles.text}`} />
+               
+               <p className={`text-lg md:text-2xl font-light tracking-[0.8em] uppercase ${startStyles.text} opacity-90`}>
+                  Zen Gomoku
+               </p>
+            </div>
+
+            {/* Start Interaction */}
+            <div className="mt-20 md:mt-24 group relative">
+               <button 
+                  onClick={startGame}
+                  className={`relative px-12 py-4 md:px-16 md:py-5 overflow-hidden rounded-full transition-all duration-500 border hover:shadow-[0_0_40px_rgba(255,255,255,0.3)] ${
+                    theme === Theme.Day && skin === Skin.Ink 
+                      ? 'border-black/20 text-black hover:bg-black/5' 
+                      : 'border-white/20 text-white hover:bg-white/10'
+                  }`}
+               >
+                  <span className="relative z-10 flex items-center gap-4 text-sm md:text-base font-medium tracking-[0.3em]">
+                     ENTER THE VOID 
+                     <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
+                  </span>
+               </button>
+               
+               {/* Pulsing Dot Indicator */}
+               <div className={`absolute -bottom-12 left-1/2 transform -translate-x-1/2 flex flex-col items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-500 ${startStyles.text}`}>
+                  <div className="w-1 h-8 bg-current opacity-20" />
+               </div>
+            </div>
+        </div>
+
+        {/* Footer Quote */}
+        <div className={`absolute bottom-8 md:bottom-12 max-w-md text-center px-6 ${startStyles.text} opacity-60 transition-opacity duration-1000 ${hasStarted ? 'opacity-0' : ''}`}>
+           <p className="text-xs md:text-sm font-serif italic tracking-wide">
+              "{quote}"
+           </p>
         </div>
       </div>
 
