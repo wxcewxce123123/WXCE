@@ -185,13 +185,17 @@ function App() {
       !isReplaying
     ) {
       setIsThinking(true);
+      // Slight delay to allow UI to render the user's move first, then AI thinks
       const timer = setTimeout(() => {
-        const move = getAIMove(game.board, Player.White, difficulty);
-        if (move) {
-          executeMove(move.r, move.c);
-        }
-        setIsThinking(false);
-      }, 600);
+        // Use a short timeout to let the browser paint the "thinking" state if needed
+        setTimeout(() => {
+            const move = getAIMove(game.board, Player.White, difficulty);
+            if (move) {
+                executeMove(move.r, move.c);
+            }
+            setIsThinking(false);
+        }, 50);
+      }, 500);
       return () => clearTimeout(timer);
     }
   }, [game.currentPlayer, game.winner, gameMode, difficulty, game.board, hasStarted, executeMove, isReplaying]);
@@ -423,22 +427,94 @@ function App() {
   };
 
   const isDragon = skin === Skin.Dragon;
-  let titleClass = "";
-  let glowClass = "drop-shadow-[0_0_25px_rgba(245,158,11,0.8)]";
   
-  if (isDragon) {
-    titleClass = `text-transparent bg-clip-text bg-gradient-to-b from-yellow-300 via-amber-500 to-red-600 ${glowClass}`;
-  } else if (skin === Skin.Celestia) {
-    titleClass = `text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-yellow-400 to-amber-500 drop-shadow-[0_0_10px_rgba(251,191,36,0.6)]`;
-  } else if (skin === Skin.Cyber) {
-    titleClass = `text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500 drop-shadow-[0_0_10px_cyan]`;
-  } else if (skin === Skin.Aurora) {
-    titleClass = `text-transparent bg-clip-text bg-gradient-to-r from-green-300 via-cyan-400 to-blue-500 drop-shadow-[0_0_15px_rgba(34,211,238,0.6)]`;
-  } else {
-    titleClass = theme === Theme.Day 
-      ? "text-transparent bg-clip-text bg-gradient-to-r from-stone-600 to-stone-900 drop-shadow-sm" 
-      : "text-transparent bg-clip-text bg-gradient-to-r from-cyan-200 to-purple-300 drop-shadow-[0_0_10px_rgba(168,85,247,0.5)]";
-  }
+  // Start Screen Styling Helper with extended skin support
+  const getStartScreenColors = () => {
+    switch (skin) {
+      case Skin.Dragon: return { 
+        ring: 'border-amber-600/30', 
+        glow: 'shadow-amber-500/20', 
+        text: 'text-amber-100',
+        title: 'from-yellow-300 via-amber-500 to-red-600'
+      };
+      case Skin.Celestia: return { 
+        ring: 'border-yellow-200/40', 
+        glow: 'shadow-yellow-100/30', 
+        text: 'text-yellow-50',
+        title: 'from-yellow-100 via-amber-200 to-yellow-400'
+      };
+      case Skin.Cyber: return { 
+        ring: 'border-cyan-500/40', 
+        glow: 'shadow-cyan-500/30', 
+        text: 'text-cyan-100',
+        title: 'from-cyan-300 via-blue-500 to-purple-600'
+      };
+      case Skin.Forest: return { 
+        ring: 'border-emerald-500/30', 
+        glow: 'shadow-emerald-500/20', 
+        text: 'text-emerald-50',
+        title: 'from-emerald-300 via-green-500 to-teal-600'
+      };
+      case Skin.Ocean: return { 
+        ring: 'border-sky-500/30', 
+        glow: 'shadow-sky-500/20', 
+        text: 'text-sky-50',
+        title: 'from-sky-300 via-blue-500 to-indigo-600'
+      };
+      case Skin.Sakura: return { 
+        ring: 'border-pink-400/30', 
+        glow: 'shadow-pink-400/20', 
+        text: 'text-pink-50',
+        title: 'from-pink-200 via-rose-400 to-red-500'
+      };
+      case Skin.Sunset: return { 
+        ring: 'border-orange-500/30', 
+        glow: 'shadow-orange-500/20', 
+        text: 'text-orange-50',
+        title: 'from-orange-200 via-red-400 to-stone-600'
+      };
+      case Skin.Nebula: return { 
+        ring: 'border-purple-500/40', 
+        glow: 'shadow-purple-500/30', 
+        text: 'text-purple-100',
+        title: 'from-purple-300 via-violet-500 to-indigo-600'
+      };
+      case Skin.Glacier: return { 
+        ring: 'border-blue-300/30', 
+        glow: 'shadow-blue-300/20', 
+        text: 'text-blue-50',
+        title: 'from-blue-100 via-sky-300 to-blue-600'
+      };
+      case Skin.Alchemy: return { 
+        ring: 'border-amber-700/40', 
+        glow: 'shadow-amber-600/30', 
+        text: 'text-amber-100',
+        title: 'from-amber-200 via-yellow-600 to-amber-800'
+      };
+      case Skin.Aurora: return { 
+        ring: 'border-teal-400/30', 
+        glow: 'shadow-teal-400/20', 
+        text: 'text-teal-50',
+        title: 'from-teal-200 via-cyan-400 to-emerald-500'
+      };
+      case Skin.Ink: return { 
+        ring: 'border-stone-800/20', 
+        glow: 'shadow-stone-500/10', 
+        text: 'text-stone-800 dark:text-stone-200',
+        title: 'from-stone-500 via-gray-700 to-black'
+      };
+      default: return { 
+        ring: 'border-white/10', 
+        glow: 'shadow-white/10', 
+        text: 'text-white',
+        title: 'from-stone-200 via-stone-400 to-stone-600'
+      };
+    }
+  };
+  const startStyles = getStartScreenColors();
+
+  // Dynamic Title Class based on Skin
+  let titleClass = `text-transparent bg-clip-text bg-gradient-to-r ${startStyles.title} drop-shadow-[0_0_15px_rgba(255,255,255,0.4)]`;
 
   const statusClass = isDragon 
     ? "text-amber-500 font-serif tracking-widest font-bold" 
@@ -450,20 +526,6 @@ function App() {
     if (skin === Skin.Cyber) return '赛博模式';
     return '五子连珠';
   };
-
-  // Start Screen Styling Helper
-  const getStartScreenColors = () => {
-    switch (skin) {
-      case Skin.Dragon: return { ring: 'border-amber-600/30', glow: 'shadow-amber-500/20', text: 'text-amber-100' };
-      case Skin.Celestia: return { ring: 'border-yellow-400/30', glow: 'shadow-yellow-400/20', text: 'text-yellow-50' };
-      case Skin.Cyber: return { ring: 'border-cyan-500/30', glow: 'shadow-cyan-500/20', text: 'text-cyan-50' };
-      case Skin.Forest: return { ring: 'border-emerald-500/30', glow: 'shadow-emerald-500/20', text: 'text-emerald-50' };
-      case Skin.Sakura: return { ring: 'border-pink-400/30', glow: 'shadow-pink-400/20', text: 'text-pink-50' };
-      case Skin.Ink: return { ring: 'border-gray-800/20', glow: 'shadow-gray-500/10', text: 'text-gray-900' };
-      default: return { ring: 'border-white/10', glow: 'shadow-white/10', text: 'text-white' };
-    }
-  };
-  const startStyles = getStartScreenColors();
 
   return (
     <div className={`relative min-h-[100dvh] w-full flex flex-col items-center justify-start md:justify-center overflow-x-hidden pt-6 pb-6 md:py-0`}>
@@ -520,7 +582,7 @@ function App() {
             <div className="flex flex-col items-center text-center space-y-6 md:space-y-8 transform hover:scale-105 transition-transform duration-700">
                <h1 className={`text-7xl md:text-9xl font-serif font-bold tracking-widest ${titleClass} drop-shadow-2xl relative`}>
                   无双
-                  <span className="absolute -top-4 -right-4 text-xs md:text-sm font-sans font-normal opacity-50 tracking-normal text-current border border-current px-2 py-0.5 rounded-full">
+                  <span className={`absolute -top-4 -right-4 text-xs md:text-sm font-sans font-normal opacity-50 tracking-normal border px-2 py-0.5 rounded-full ${startStyles.text} border-current`}>
                      Ver 2.0
                   </span>
                </h1>
@@ -542,7 +604,7 @@ function App() {
                       : 'border-white/20 text-white hover:bg-white/10'
                   }`}
                >
-                  <span className="relative z-10 flex items-center gap-4 text-sm md:text-base font-medium tracking-[0.3em]">
+                  <span className={`relative z-10 flex items-center gap-4 text-sm md:text-base font-medium tracking-[0.3em] ${startStyles.text}`}>
                      ENTER THE VOID 
                      <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
                   </span>

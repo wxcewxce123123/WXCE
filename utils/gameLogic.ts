@@ -145,24 +145,22 @@ const getPositionalScore = (board: Player[][], r: number, c: number, player: Pla
   return score;
 };
 
-export const getAIMove = (board: Player[][], aiPlayer: Player, difficulty: Difficulty): { r: number, c: number } | null => {
-  const opponent = aiPlayer === Player.Black ? Player.White : Player.Black;
-  let bestScore = -Infinity;
-  let bestMoves: { r: number, c: number }[] = [];
-
-  const relevantCells = new Set<string>();
+// Helper: Get relevant empty cells (nearby existing stones) to optimize search
+const getRelevantCells = (board: Player[][], distance: number = 2): {r: number, c: number}[] => {
+  const candidates = new Set<string>();
   let hasStones = false;
 
   for (let r = 0; r < BOARD_SIZE; r++) {
     for (let c = 0; c < BOARD_SIZE; c++) {
       if (board[r][c] !== Player.None) {
         hasStones = true;
-        for (let dr = -2; dr <= 2; dr++) {
-          for (let dc = -2; dc <= 2; dc++) {
+        for (let dr = -distance; dr <= distance; dr++) {
+          for (let dc = -distance; dc <= distance; dc++) {
+            if (dr === 0 && dc === 0) continue;
             const nr = r + dr;
             const nc = c + dc;
             if (nr >= 0 && nr < BOARD_SIZE && nc >= 0 && nc < BOARD_SIZE && board[nr][nc] === Player.None) {
-              relevantCells.add(`${nr},${nc}`);
+              candidates.add(`${nr},${nc}`);
             }
           }
         }
@@ -170,18 +168,127 @@ export const getAIMove = (board: Player[][], aiPlayer: Player, difficulty: Diffi
     }
   }
 
-  if (!hasStones) return { r: 7, c: 7 };
+  if (!hasStones) return [{r: 7, c: 7}];
 
-  if (relevantCells.size === 0) {
-     for (let r = 0; r < BOARD_SIZE; r++) {
-       for (let c = 0; c < BOARD_SIZE; c++) {
-         if (board[r][c] === Player.None) relevantCells.add(`${r},${c}`);
-       }
-     }
+  // Convert Set back to array
+  return Array.from(candidates).map(str => {
+    const [r, c] = str.split(',').map(Number);
+    return {r, c};
+  });
+};
+
+
+// --- Minimax Implementation (Depth 2 with Alpha-Beta Pruning) ---
+const getBestMoveMinimax = (board: Player[][], aiPlayer: Player): { r: number, c: number } | null => {
+    const candidates = getRelevantCells(board, 2);
+    
+    // 1. Initial Sorting / Beam Search
+    // Sort candidates by heuristic score to maximize pruning potential
+    const rankedCandidates = candidates.map(move => {
+        const attack = getPositionalScore(board, move.r, move.c, aiPlayer);
+        const defense = getPositionalScore(board, move.r, move.c, aiPlayer === Player.Black ? Player.White : Player.Black);
+        // Heavily weight immediate win/loss prevention in pre-sort
+        let score = attack + defense;
+        if (attack >= SCORE_FIVE) score += 100000000;
+        else if (defense >= SCORE_FIVE) score += 50000000;
+        else if (attack >= SCORE_OPEN_FOUR) score += 1000000;
+        else if (defense >= SCORE_OPEN_FOUR) score += 500000;
+        return { ...move, score };
+    }).sort((a, b) => b.score - a.score);
+
+    // Only consider top X moves for deep calculation to maintain performance
+    const searchWindow = 12; 
+    const topMoves = rankedCandidates.slice(0, searchWindow);
+    
+    // Check for immediate win in top moves
+    for (const move of topMoves) {
+        if (move.score >= 100000000) return { r: move.r, c: move.c }; // Winning move
+    }
+
+    let bestScore = -Infinity;
+    let bestMove = topMoves[0];
+    const opponent = aiPlayer === Player.Black ? Player.White : Player.Black;
+
+    // 2. Shallow Minimax (Depth 2: AI Move -> Opponent Response)
+    for (const move of topMoves) {
+        // Apply AI Move
+        board[move.r][move.c] = aiPlayer;
+        
+        let minOpponentScore = Infinity; // We want to find the move that leaves the opponent with the WORST best option
+        
+        // Find opponent's best response to this move
+        // We re-calculate candidates around the new move + existing candidates
+        // For speed, we just use the existing high-threat areas or scan all relevant
+        // Here we simplify: re-evaluate the board state from opponent's view
+        
+        // Simple 1-ply lookahead for opponent (Minimizer node)
+        // Opponent wants to maximize their score (or block AI)
+        
+        // Optimization: We don't need full candidate search for opponent, just check if they can win
+        // or if they have a huge threat.
+        const oppCandidates = getRelevantCells(board, 1); 
+        
+        let maxResponseScore = -Infinity;
+        
+        for (const resp of oppCandidates) {
+             const oppAttack = getPositionalScore(board, resp.r, resp.c, opponent);
+             const oppDefense = getPositionalScore(board, resp.r, resp.c, aiPlayer); // Opponent blocking AI
+             
+             // Opponent evaluation logic
+             let val = oppAttack + oppDefense;
+             
+             // If opponent can win, they will definitely take it. Score is huge.
+             if (oppAttack >= SCORE_FIVE) val = Infinity;
+             else if (oppDefense >= SCORE_FIVE) val = 1000000; // Opponent forced to block AI win
+             else if (oppAttack >= SCORE_OPEN_FOUR) val = 500000;
+             
+             if (val > maxResponseScore) {
+                 maxResponseScore = val;
+             }
+             // Pruning: If opponent already has a winning move, we don't need to search further, this branch is bad for AI
+             if (maxResponseScore === Infinity) break;
+        }
+
+        // Evaluate state: (AI's move value) - (Opponent's best response value * weight)
+        // If opponent has Infinity score (can win), this move result is -Infinity
+        
+        let moveValue = 0;
+        if (maxResponseScore === Infinity) {
+             moveValue = -Infinity;
+        } else {
+             // Heuristic: AI Move Score (Attack) + AI Move Score (Defense against prev state) - Opponent Response
+             // But simpler: just use the initial pre-sort score as base, and subtract the opponent's best counterplay capability
+             moveValue = move.score - (maxResponseScore * 1.5); 
+        }
+
+        // Backtrack
+        board[move.r][move.c] = Player.None;
+
+        if (moveValue > bestScore) {
+            bestScore = moveValue;
+            bestMove = move;
+        }
+    }
+
+    return bestMove;
+};
+
+
+export const getAIMove = (board: Player[][], aiPlayer: Player, difficulty: Difficulty): { r: number, c: number } | null => {
+  const opponent = aiPlayer === Player.Black ? Player.White : Player.Black;
+
+  if (difficulty === Difficulty.Hard) {
+      return getBestMoveMinimax(board, aiPlayer);
   }
 
-  Array.from(relevantCells).forEach(key => {
-    const [r, c] = key.split(',').map(Number);
+  // --- EASY / MEDIUM (Greedy / Weighted Random) ---
+  
+  let bestScore = -Infinity;
+  let bestMoves: { r: number, c: number }[] = [];
+  
+  const relevantCells = getRelevantCells(board, 2);
+
+  relevantCells.forEach(({r, c}) => {
     const attackScore = getPositionalScore(board, r, c, aiPlayer);
     const defenseScore = getPositionalScore(board, r, c, opponent);
     let totalScore = 0;
@@ -192,13 +299,9 @@ export const getAIMove = (board: Player[][], aiPlayer: Player, difficulty: Diffi
         break;
       case Difficulty.Medium:
         totalScore = attackScore + defenseScore * 0.8;
-        break;
-      case Difficulty.Hard:
-        totalScore = attackScore + defenseScore * 0.95;
-        if (attackScore >= SCORE_FIVE) totalScore = Infinity; 
-        else if (defenseScore >= SCORE_FIVE) totalScore = 10000000; 
-        else if (attackScore >= SCORE_OPEN_FOUR) totalScore = 5000000; 
-        else if (defenseScore >= SCORE_OPEN_FOUR) totalScore = 4000000; 
+        // Boost critical moves slightly
+        if (attackScore >= SCORE_OPEN_FOUR) totalScore += 10000;
+        if (defenseScore >= SCORE_OPEN_FOUR) totalScore += 9000;
         break;
     }
 
