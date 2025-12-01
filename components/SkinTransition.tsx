@@ -42,6 +42,7 @@ const SkinTransition: React.FC<SkinTransitionProps> = ({ targetSkin, onPeak, onC
     let globalFade = 1;
 
     let particles: any[] = [];
+    let rays: any[] = [];
 
     // --- Particle Classes ---
     class Leaf {
@@ -83,61 +84,88 @@ const SkinTransition: React.FC<SkinTransitionProps> = ({ targetSkin, onPeak, onC
         ctx.fillStyle=g; ctx.beginPath(); ctx.arc(this.x,this.y,this.r,0,Math.PI*2); ctx.fill();
       }
     }
-    
-    // Updated Feather: Falls gently from top (Bamboo-style physics)
-    class Feather {
-        x: number; y: number; size: number; vy: number; sway: number; swaySpeed: number; rotation: number; rotSpeed: number; opacity: number;
-        constructor() {
-            this.x = Math.random() * width;
-            // Spawn mainly above screen, some already at top
-            this.y = -Math.random() * height * 0.5 - 20; 
-            this.size = Math.random() * 10 + 6;
-            this.vy = Math.random() * 3 + 1.5; // Gentle fall speed
-            this.sway = Math.random() * Math.PI * 2;
-            this.swaySpeed = Math.random() * 0.03 + 0.01;
-            this.rotation = Math.random() * Math.PI * 2;
-            this.rotSpeed = (Math.random() - 0.5) * 0.05;
-            this.opacity = Math.random() * 0.5 + 0.5;
-        }
-        update() {
-            this.y += this.vy;
-            this.sway += this.swaySpeed;
-            this.x += Math.sin(this.sway) * 1.5; // Sway back and forth
-            this.rotation += this.rotSpeed + Math.cos(this.sway) * 0.01;
-            
-            // Loop if falls too far (for sustained effect if extended)
-            if (this.y > height + 20) {
-               // No loop for transition, just let them fall out
-            }
-        }
-        draw(ctx: CanvasRenderingContext2D) {
-            ctx.save();
-            ctx.translate(this.x, this.y);
-            ctx.rotate(this.rotation);
-            ctx.globalAlpha = this.opacity * globalFade;
-            
-            // Feather Body
-            ctx.fillStyle = `rgba(255, 255, 255, 0.9)`;
-            ctx.shadowBlur = 10;
-            ctx.shadowColor = '#fbbf24'; // Gold glow
-            ctx.beginPath();
-            ctx.ellipse(0, 0, this.size, this.size/3.5, 0, 0, Math.PI*2);
-            ctx.fill();
-            
-            // Feather Quill
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
-            ctx.lineWidth = 1;
-            ctx.beginPath(); 
-            ctx.moveTo(-this.size, 0); 
-            ctx.lineTo(this.size, 0); 
-            ctx.stroke();
-            
-            ctx.restore();
-        }
+
+    // --- CELESTIA EFFECT CLASSES ---
+    class DivineRay {
+      angle: number;
+      width: number;
+      speed: number;
+      length: number;
+      alpha: number;
+
+      constructor() {
+        this.angle = Math.random() * Math.PI * 2;
+        this.width = Math.random() * 0.2 + 0.05; // Angular width in radians
+        this.speed = (Math.random() - 0.5) * 0.02;
+        this.length = Math.max(width, height) * 1.5;
+        this.alpha = Math.random() * 0.5 + 0.2;
+      }
+
+      update() {
+        this.angle += this.speed;
+      }
+
+      draw(ctx: CanvasRenderingContext2D, centerX: number, centerY: number) {
+        ctx.save();
+        ctx.translate(centerX, centerY);
+        ctx.rotate(this.angle);
+        
+        const grad = ctx.createLinearGradient(0, 0, this.length, 0);
+        grad.addColorStop(0, `rgba(255, 255, 255, ${this.alpha})`);
+        grad.addColorStop(1, `rgba(251, 191, 36, 0)`); // Fade to transparent gold
+
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(this.length, -this.length * Math.tan(this.width / 2));
+        ctx.lineTo(this.length, this.length * Math.tan(this.width / 2));
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      }
     }
 
+    class BurstParticle {
+        x: number; y: number; vx: number; vy: number; size: number; color: string; decay: number;
+        constructor(type: 'feather' | 'spark') {
+           this.x = width / 2;
+           this.y = height / 2;
+           const angle = Math.random() * Math.PI * 2;
+           // Explosive speed
+           const speed = type === 'feather' ? (Math.random() * 20 + 5) : (Math.random() * 30 + 10);
+           this.vx = Math.cos(angle) * speed;
+           this.vy = Math.sin(angle) * speed;
+           this.size = type === 'feather' ? (Math.random() * 15 + 5) : (Math.random() * 4 + 1);
+           this.color = type === 'feather' ? '#fff' : '#fbbf24';
+           this.decay = Math.random() * 0.95 + 0.90; // Drag
+        }
+
+        update() {
+           this.x += this.vx;
+           this.y += this.vy;
+           this.vx *= 0.92; // Heavy Air resistance
+           this.vy *= 0.92;
+           this.vy += 0.2; // Gravity slowly takes over
+           if (this.color === '#fff') { // Feathers flutter
+               this.x += Math.sin(frame * 0.2) * 0.5;
+           }
+        }
+
+        draw(ctx: CanvasRenderingContext2D) {
+            ctx.fillStyle = this.color;
+            ctx.beginPath();
+            if (this.color === '#fff') {
+                ctx.ellipse(this.x, this.y, this.size, this.size/3, Math.atan2(this.vy, this.vx), 0, Math.PI*2);
+            } else {
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI*2);
+            }
+            ctx.fill();
+        }
+    }
+    
     const initParticles = () => {
         particles = [];
+        rays = [];
         if (targetSkin === 'forest') for(let i=0; i<150; i++) particles.push(new Leaf());
         if (targetSkin === 'ocean') for(let i=0; i<100; i++) particles.push(new Bubble());
         if (targetSkin === 'sakura') for(let i=0; i<250; i++) particles.push(new SakuraPetal());
@@ -148,9 +176,16 @@ const SkinTransition: React.FC<SkinTransitionProps> = ({ targetSkin, onPeak, onC
         if (targetSkin === 'glacier') for(let i=0; i<120; i++) particles.push(new FrostSpike());
         if (targetSkin === 'alchemy') for(let i=0; i<30; i++) particles.push(new Gear());
         if (targetSkin === 'aurora') for(let i=0; i<50; i++) particles.push(new GlowOrb());
+        
         if (targetSkin === 'celestia') {
-           // Spawn many feathers
-           for(let i=0; i<120; i++) particles.push(new Feather());
+           // Create God Rays
+           for (let i = 0; i < 12; i++) {
+             rays.push(new DivineRay());
+           }
+           // Explosion particles
+           for (let i = 0; i < 150; i++) {
+             particles.push(new BurstParticle(i % 5 === 0 ? 'feather' : 'spark'));
+           }
         }
     };
     initParticles();
@@ -192,34 +227,56 @@ const SkinTransition: React.FC<SkinTransitionProps> = ({ targetSkin, onPeak, onC
         else if (targetSkin === 'alchemy') { const alpha = progress < 0.5 ? progress * 2 : 2; ctx.fillStyle = `rgba(41, 37, 36, ${alpha > 1 ? 1 : alpha})`; ctx.fillRect(0,0,width,height); particles.forEach(p => { p.update(); p.draw(ctx); }); }
         else if (targetSkin === 'aurora') { const alpha = progress < 0.5 ? progress * 2 : 2; ctx.fillStyle = `rgba(2, 6, 23, ${alpha > 1 ? 1 : alpha})`; ctx.fillRect(0,0,width,height); particles.forEach(p => { p.update(); p.draw(ctx); }); }
         else if (targetSkin === 'celestia') {
-            // 1. Holy Light Flash (Calculated Opacity)
-            // Ramp from 0 to 1 rapidly (0-50%), then fade 1 to 0 (50-100%)
-            let flashOpacity = 0;
-            if (progress < 0.5) {
-                flashOpacity = progress * 2; 
-            } else {
-                flashOpacity = 1 - (progress - 0.5) * 2; 
-            }
-            
-            // Background (Light Gold/Blue gradient) always drawn, but obscured by flash
-            const bgGrad = ctx.createLinearGradient(0, 0, 0, height);
-            bgGrad.addColorStop(0, '#f8fafc'); 
-            bgGrad.addColorStop(1, '#fef9c3');
+            // EFFECT: DIVINE EXPLOSION
+            ctx.clearRect(0, 0, width, height);
+
+            // 1. Additive Blending for Glow
+            ctx.globalCompositeOperation = 'lighter';
+
+            // 2. Background Radiant Gradient
+            const centerX = width / 2;
+            const centerY = height / 2;
+            const bgGrad = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, width);
+            bgGrad.addColorStop(0, 'rgba(255, 255, 220, 0.4)');
+            bgGrad.addColorStop(0.5, 'rgba(251, 191, 36, 0.1)'); // Amber
+            bgGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
             ctx.fillStyle = bgGrad;
             ctx.fillRect(0, 0, width, height);
 
-            // 2. Feathers (Falling from top)
-            particles.forEach(p => {
-                p.update();
-                p.draw(ctx);
+            // 3. Draw God Rays
+            rays.forEach(ray => {
+              ray.update();
+              ray.draw(ctx, centerX, centerY);
             });
 
-            // 3. The Holy White Flash Overlay
-            if (flashOpacity > 0.01) {
-                // Ease function for more impact
-                const easeFlash = Math.pow(flashOpacity, 2); 
-                ctx.fillStyle = `rgba(255, 255, 255, ${easeFlash})`;
-                ctx.fillRect(0, 0, width, height);
+            // 4. Draw Explosion Particles
+            particles.forEach(p => {
+              p.update();
+              p.draw(ctx);
+            });
+
+            // 5. The BLINDING FLASH at Peak
+            // Opacity curve: Sharp rise to 1.0 at Peak, then fade
+            let flashOpacity = 0;
+            if (progress < 0.4) {
+               flashOpacity = (progress / 0.4) * 0.8; // Buildup
+            } else if (progress >= 0.4 && progress <= 0.6) {
+               flashOpacity = 1.0; // BLINDING WHITE
+            } else {
+               flashOpacity = 1 - ((progress - 0.6) / 0.4); // Decay
+            }
+            
+            ctx.globalCompositeOperation = 'source-over'; // Switch back for full white overlay
+            ctx.fillStyle = `rgba(255, 255, 255, ${flashOpacity})`;
+            ctx.fillRect(0, 0, width, height);
+
+            // 6. Shockwave Ring
+            if (progress > 0.4) {
+               ctx.strokeStyle = `rgba(255, 255, 255, ${1 - progress})`;
+               ctx.lineWidth = 50 * (1 - progress);
+               ctx.beginPath();
+               ctx.arc(centerX, centerY, width * (progress - 0.4) * 2, 0, Math.PI * 2);
+               ctx.stroke();
             }
         }
         else {

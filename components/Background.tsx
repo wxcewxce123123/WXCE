@@ -268,21 +268,53 @@ const Background: React.FC<BackgroundProps> = ({ theme, skin }) => {
       }
     }
 
-    class CloudMote {
-      x: number; y: number; size: number; vy: number; opacity: number;
+    // --- New Feather Particle for Celestia ---
+    class Feather {
+      x: number; y: number; size: number; speedY: number; sway: number; swaySpeed: number; rotation: number; rotSpeed: number; opacity: number;
       constructor() {
-        this.x = Math.random() * canvas!.width; this.y = Math.random() * canvas!.height;
-        this.size = Math.random() * 40 + 20; this.vy = -Math.random() * 0.5 - 0.1;
-        this.opacity = Math.random() * 0.1 + 0.05;
+        this.x = Math.random() * canvas!.width;
+        this.y = Math.random() * canvas!.height;
+        this.size = Math.random() * 10 + 5;
+        this.speedY = Math.random() * 1 + 0.5;
+        this.sway = Math.random() * Math.PI * 2;
+        this.swaySpeed = Math.random() * 0.02 + 0.01;
+        this.rotation = Math.random() * Math.PI * 2;
+        this.rotSpeed = (Math.random() - 0.5) * 0.02;
+        this.opacity = Math.random() * 0.5 + 0.3;
       }
       update() {
-        this.y += this.vy; if (this.y < -50) { this.y = canvas!.height + 50; this.x = Math.random() * canvas!.width; }
+        this.y += this.speedY;
+        this.sway += this.swaySpeed;
+        this.x += Math.sin(this.sway) * 0.5;
+        this.rotation += this.rotSpeed;
+        if (this.y > canvas!.height + 20) {
+          this.y = -20;
+          this.x = Math.random() * canvas!.width;
+        }
       }
       draw() {
         if (!ctx) return;
-        ctx.save(); ctx.globalAlpha = this.opacity; ctx.fillStyle = '#fff';
-        ctx.shadowBlur = 20; ctx.shadowColor = '#fff';
-        ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI*2); ctx.fill();
+        ctx.save();
+        ctx.translate(this.x, this.y);
+        ctx.rotate(this.rotation);
+        ctx.globalAlpha = this.opacity;
+        
+        // Draw Feather
+        ctx.fillStyle = '#fff'; 
+        ctx.shadowBlur = 5;
+        ctx.shadowColor = '#fbbf24'; // Gold glow
+        ctx.beginPath();
+        ctx.ellipse(0, 0, this.size, this.size/3, 0, 0, Math.PI*2);
+        ctx.fill();
+        
+        // Quill
+        ctx.strokeStyle = '#e2e8f0';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(-this.size, 0);
+        ctx.lineTo(this.size, 0);
+        ctx.stroke();
+        
         ctx.restore();
       }
     }
@@ -306,7 +338,7 @@ const Background: React.FC<BackgroundProps> = ({ theme, skin }) => {
         else if (skin === Skin.Ink) { if (i % 5 === 0) particles.push(new InkDrop()); }
         else if (skin === Skin.Alchemy) particles.push(new RuneParticle());
         else if (skin === Skin.Aurora) particles.push(new AuroraParticle());
-        else if (skin === Skin.Celestia) particles.push(new CloudMote());
+        else if (skin === Skin.Celestia) particles.push(new Feather());
         else if (theme === Theme.Day) particles.push(new Sakura(false));
         else particles.push(new Firefly());
       }
@@ -355,7 +387,7 @@ const Background: React.FC<BackgroundProps> = ({ theme, skin }) => {
         gradient.addColorStop(1, '#020617');
       } else if (skin === Skin.Celestia) {
         // Heavenly white/gold/blue
-        gradient.addColorStop(0, '#f8fafc');
+        gradient.addColorStop(0, '#f0f9ff');
         gradient.addColorStop(0.5, '#e0f2fe');
         gradient.addColorStop(1, '#fef9c3');
       } else if (theme === Theme.Day) {

@@ -129,8 +129,51 @@ class AudioController {
         gear.stop(t + 0.05);
         break;
 
-      case Skin.Aurora: // Ethereal/Space
       case Skin.Celestia:
+        // Divine Crystal/Bell Sound
+        // Primary tone - High frequency Sine for purity
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(1200, t);
+        osc.frequency.exponentialRampToValueAtTime(1200, t + 1.0); // Sustain pitch
+        
+        // High pass filter to remove muddiness
+        filter.type = 'highpass';
+        filter.frequency.setValueAtTime(800, t);
+
+        gain.gain.setValueAtTime(0, t);
+        gain.gain.linearRampToValueAtTime(0.4, t + 0.02); // Soft attack
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 1.5); // Long crystalline tail
+        
+        osc.start(t);
+        osc.stop(t + 1.5);
+
+        // Overtone for "Glass" character (non-integer harmonic)
+        const glassOsc = this.ctx.createOscillator();
+        const glassGain = this.ctx.createGain();
+        glassOsc.connect(glassGain);
+        glassGain.connect(this.ctx.destination);
+        
+        glassOsc.type = 'sine';
+        glassOsc.frequency.setValueAtTime(1200 * 2.6, t); // Inharmonic
+        glassGain.gain.setValueAtTime(0.1, t);
+        glassGain.gain.exponentialRampToValueAtTime(0.001, t + 0.8);
+        glassOsc.start(t);
+        glassOsc.stop(t + 0.8);
+
+        // Initial impact click (hard object hitting glass)
+        const impact = this.ctx.createOscillator();
+        const impactGain = this.ctx.createGain();
+        impact.connect(impactGain);
+        impactGain.connect(this.ctx.destination);
+        impact.type = 'triangle';
+        impact.frequency.setValueAtTime(4000, t);
+        impactGain.gain.setValueAtTime(0.1, t);
+        impactGain.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
+        impact.start(t);
+        impact.stop(t + 0.05);
+        break;
+
+      case Skin.Aurora: // Ethereal/Space
         // Soft sine sweep + shimmer
         osc.type = 'sine';
         osc.frequency.setValueAtTime(1000, t); // High start
@@ -183,45 +226,60 @@ class AudioController {
     masterGain.gain.setValueAtTime(0.3, t);
 
     if (skin === Skin.Celestia) {
-        // Angelic Chord (C Major 7 + 9)
-        const freqs = [523.25, 659.25, 783.99, 987.77, 1174.66];
+        // Divine Ascension Sound - Swelling Angelic Choir
+        const freqs = [261.63, 329.63, 392.00, 523.25, 659.25, 783.99]; // C Major spread
         freqs.forEach((f, i) => {
             const osc = this.ctx!.createOscillator();
             const g = this.ctx!.createGain();
             osc.connect(g);
             g.connect(masterGain);
             
+            // Mix sine and triangle for a "voice-like" quality
             osc.type = i % 2 === 0 ? 'sine' : 'triangle';
             osc.frequency.setValueAtTime(f, t);
             
+            // Slow swell
             g.gain.setValueAtTime(0, t);
-            g.gain.linearRampToValueAtTime(0.1, t + 0.5); // Slow attack
-            g.gain.exponentialRampToValueAtTime(0.001, t + 3.0); // Long decay
+            g.gain.linearRampToValueAtTime(0.08, t + 1.0); // Peak at 1s
+            g.gain.exponentialRampToValueAtTime(0.001, t + 4.0); // Long decay
             
+            // Subtle vibrato
+            const vib = this.ctx!.createOscillator();
+            const vibGain = this.ctx!.createGain();
+            vib.connect(vibGain);
+            vibGain.connect(osc.frequency);
+            vib.frequency.value = 4 + Math.random(); // 4-5Hz vibrato
+            vibGain.gain.value = 3; // +/- 3Hz pitch shift
+            vib.start(t);
+            vib.stop(t + 4.0);
+
             osc.start(t);
-            osc.stop(t + 3.0);
+            osc.stop(t + 4.0);
         });
         
-        // Whoosh
+        // Ethereal Wind / Shine
         const noiseBuffer = this.createNoiseBuffer();
-        const noiseSrc = this.ctx.createBufferSource();
-        const noiseFilter = this.ctx.createBiquadFilter();
-        const noiseGain = this.ctx.createGain();
-        
-        noiseSrc.buffer = noiseBuffer;
-        noiseFilter.type = 'lowpass';
-        noiseFilter.frequency.setValueAtTime(200, t);
-        noiseFilter.frequency.linearRampToValueAtTime(2000, t + 1);
-        
-        noiseSrc.connect(noiseFilter);
-        noiseFilter.connect(noiseGain);
-        noiseGain.connect(masterGain);
-        
-        noiseGain.gain.setValueAtTime(0.2, t);
-        noiseGain.gain.exponentialRampToValueAtTime(0.001, t + 1.5);
-        
-        noiseSrc.start(t);
-        noiseSrc.stop(t + 1.5);
+        if (noiseBuffer) {
+            const noiseSrc = this.ctx.createBufferSource();
+            const noiseFilter = this.ctx.createBiquadFilter();
+            const noiseGain = this.ctx.createGain();
+            
+            noiseSrc.buffer = noiseBuffer;
+            noiseFilter.type = 'bandpass';
+            noiseFilter.frequency.setValueAtTime(800, t);
+            noiseFilter.frequency.linearRampToValueAtTime(2000, t + 2); // Filter sweep up
+            
+            noiseSrc.connect(noiseFilter);
+            noiseFilter.connect(noiseGain);
+            noiseGain.connect(masterGain);
+            
+            noiseGain.gain.setValueAtTime(0, t);
+            noiseGain.gain.linearRampToValueAtTime(0.1, t + 1.5);
+            noiseGain.gain.linearRampToValueAtTime(0, t + 3.0);
+            
+            noiseSrc.start(t);
+            noiseSrc.stop(t + 3.0);
+        }
         
     } else if (skin === Skin.Dragon) {
         // Deep Rumble
