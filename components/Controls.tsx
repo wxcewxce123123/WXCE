@@ -79,6 +79,7 @@ const Controls: React.FC<ControlsProps> = ({
     { id: Skin.Nebula, label: '星云', color: '#4c1d95' },
     { id: Skin.Alchemy, label: '炼金', color: '#d97706' },
     { id: Skin.Aurora, label: '极光', color: '#22d3ee' },
+    { id: Skin.Celestia, label: '天穹', color: '#fbbf24', special: true },
     { id: Skin.Dragon, label: '金龙', special: true, color: '#f59e0b' },
   ];
 

@@ -23,6 +23,7 @@ export enum Skin {
   Glacier = 'glacier',
   Alchemy = 'alchemy',
   Aurora = 'aurora',
+  Celestia = 'celestia',
 }
 
 export enum GameMode {

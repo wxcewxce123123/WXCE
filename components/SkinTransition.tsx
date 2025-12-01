@@ -1,6 +1,7 @@
 
 import React, { useEffect, useRef } from 'react';
 import { Skin } from '../types';
+import { audioController } from '../utils/audio';
 
 interface SkinTransitionProps {
   targetSkin: Skin;
@@ -20,6 +21,9 @@ const SkinTransition: React.FC<SkinTransitionProps> = ({ targetSkin, onPeak, onC
   }, [onPeak, onComplete]);
 
   useEffect(() => {
+    // Trigger sound
+    audioController.playSkinTransition(targetSkin);
+
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
@@ -40,8 +44,6 @@ const SkinTransition: React.FC<SkinTransitionProps> = ({ targetSkin, onPeak, onC
     let particles: any[] = [];
 
     // --- Particle Classes ---
-    // ... (Leaf, Bubble, SakuraPetal, SandGrain, WarpStar, MatrixChar, InkBlob, FrostSpike)
-
     class Leaf {
         x: number; y: number; size: number; color: string; vx: number; vy: number; rot: number;
         constructor() { this.x = -50; this.y = Math.random() * height; this.size = Math.random() * 20 + 10; this.color = Math.random() > 0.5 ? '#10b981' : '#065f46'; this.vx = Math.random() * 20 + 15; this.vy = (Math.random() - 0.5) * 5; this.rot = Math.random() * Math.PI; }
@@ -63,7 +65,6 @@ const SkinTransition: React.FC<SkinTransitionProps> = ({ targetSkin, onPeak, onC
       draw(ctx: CanvasRenderingContext2D) {
          ctx.save(); ctx.translate(this.x, this.y); ctx.rotate(this.rot); ctx.fillStyle = '#78350f'; 
          ctx.beginPath(); ctx.arc(0, 0, this.r, 0, Math.PI*2); ctx.fill();
-         // simple gear teeth visual
          for(let i=0; i<this.teeth; i++) {
             ctx.rotate(Math.PI*2/this.teeth);
             ctx.fillRect(-5, -this.r-10, 10, 20);
@@ -82,6 +83,58 @@ const SkinTransition: React.FC<SkinTransitionProps> = ({ targetSkin, onPeak, onC
         ctx.fillStyle=g; ctx.beginPath(); ctx.arc(this.x,this.y,this.r,0,Math.PI*2); ctx.fill();
       }
     }
+    
+    // Updated Feather: Falls gently from top (Bamboo-style physics)
+    class Feather {
+        x: number; y: number; size: number; vy: number; sway: number; swaySpeed: number; rotation: number; rotSpeed: number; opacity: number;
+        constructor() {
+            this.x = Math.random() * width;
+            // Spawn mainly above screen, some already at top
+            this.y = -Math.random() * height * 0.5 - 20; 
+            this.size = Math.random() * 10 + 6;
+            this.vy = Math.random() * 3 + 1.5; // Gentle fall speed
+            this.sway = Math.random() * Math.PI * 2;
+            this.swaySpeed = Math.random() * 0.03 + 0.01;
+            this.rotation = Math.random() * Math.PI * 2;
+            this.rotSpeed = (Math.random() - 0.5) * 0.05;
+            this.opacity = Math.random() * 0.5 + 0.5;
+        }
+        update() {
+            this.y += this.vy;
+            this.sway += this.swaySpeed;
+            this.x += Math.sin(this.sway) * 1.5; // Sway back and forth
+            this.rotation += this.rotSpeed + Math.cos(this.sway) * 0.01;
+            
+            // Loop if falls too far (for sustained effect if extended)
+            if (this.y > height + 20) {
+               // No loop for transition, just let them fall out
+            }
+        }
+        draw(ctx: CanvasRenderingContext2D) {
+            ctx.save();
+            ctx.translate(this.x, this.y);
+            ctx.rotate(this.rotation);
+            ctx.globalAlpha = this.opacity * globalFade;
+            
+            // Feather Body
+            ctx.fillStyle = `rgba(255, 255, 255, 0.9)`;
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = '#fbbf24'; // Gold glow
+            ctx.beginPath();
+            ctx.ellipse(0, 0, this.size, this.size/3.5, 0, 0, Math.PI*2);
+            ctx.fill();
+            
+            // Feather Quill
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+            ctx.lineWidth = 1;
+            ctx.beginPath(); 
+            ctx.moveTo(-this.size, 0); 
+            ctx.lineTo(this.size, 0); 
+            ctx.stroke();
+            
+            ctx.restore();
+        }
+    }
 
     const initParticles = () => {
         particles = [];
@@ -95,6 +148,10 @@ const SkinTransition: React.FC<SkinTransitionProps> = ({ targetSkin, onPeak, onC
         if (targetSkin === 'glacier') for(let i=0; i<120; i++) particles.push(new FrostSpike());
         if (targetSkin === 'alchemy') for(let i=0; i<30; i++) particles.push(new Gear());
         if (targetSkin === 'aurora') for(let i=0; i<50; i++) particles.push(new GlowOrb());
+        if (targetSkin === 'celestia') {
+           // Spawn many feathers
+           for(let i=0; i<120; i++) particles.push(new Feather());
+        }
     };
     initParticles();
 
@@ -112,7 +169,7 @@ const SkinTransition: React.FC<SkinTransitionProps> = ({ targetSkin, onPeak, onC
         }
 
         // Clear logic
-        if (targetSkin !== 'classic' && targetSkin !== 'ink') ctx.clearRect(0,0,width,height);
+        if (targetSkin !== 'classic' && targetSkin !== 'ink' && targetSkin !== 'celestia') ctx.clearRect(0,0,width,height);
         
         ctx.save();
         ctx.globalAlpha = globalFade;
@@ -134,6 +191,37 @@ const SkinTransition: React.FC<SkinTransitionProps> = ({ targetSkin, onPeak, onC
         else if (targetSkin === 'glacier') { const alpha = progress < 0.5 ? progress * 2 : 2; ctx.fillStyle = `rgba(30, 58, 138, ${alpha > 1 ? 1 : alpha})`; ctx.fillRect(0,0,width,height); particles.forEach(p => { p.update(); p.draw(ctx); }); }
         else if (targetSkin === 'alchemy') { const alpha = progress < 0.5 ? progress * 2 : 2; ctx.fillStyle = `rgba(41, 37, 36, ${alpha > 1 ? 1 : alpha})`; ctx.fillRect(0,0,width,height); particles.forEach(p => { p.update(); p.draw(ctx); }); }
         else if (targetSkin === 'aurora') { const alpha = progress < 0.5 ? progress * 2 : 2; ctx.fillStyle = `rgba(2, 6, 23, ${alpha > 1 ? 1 : alpha})`; ctx.fillRect(0,0,width,height); particles.forEach(p => { p.update(); p.draw(ctx); }); }
+        else if (targetSkin === 'celestia') {
+            // 1. Holy Light Flash (Calculated Opacity)
+            // Ramp from 0 to 1 rapidly (0-50%), then fade 1 to 0 (50-100%)
+            let flashOpacity = 0;
+            if (progress < 0.5) {
+                flashOpacity = progress * 2; 
+            } else {
+                flashOpacity = 1 - (progress - 0.5) * 2; 
+            }
+            
+            // Background (Light Gold/Blue gradient) always drawn, but obscured by flash
+            const bgGrad = ctx.createLinearGradient(0, 0, 0, height);
+            bgGrad.addColorStop(0, '#f8fafc'); 
+            bgGrad.addColorStop(1, '#fef9c3');
+            ctx.fillStyle = bgGrad;
+            ctx.fillRect(0, 0, width, height);
+
+            // 2. Feathers (Falling from top)
+            particles.forEach(p => {
+                p.update();
+                p.draw(ctx);
+            });
+
+            // 3. The Holy White Flash Overlay
+            if (flashOpacity > 0.01) {
+                // Ease function for more impact
+                const easeFlash = Math.pow(flashOpacity, 2); 
+                ctx.fillStyle = `rgba(255, 255, 255, ${easeFlash})`;
+                ctx.fillRect(0, 0, width, height);
+            }
+        }
         else {
              // Classic
              ctx.clearRect(0,0,width,height);

@@ -130,6 +130,7 @@ class AudioController {
         break;
 
       case Skin.Aurora: // Ethereal/Space
+      case Skin.Celestia:
         // Soft sine sweep + shimmer
         osc.type = 'sine';
         osc.frequency.setValueAtTime(1000, t); // High start
@@ -170,6 +171,99 @@ class AudioController {
         osc.stop(t + 0.3);
         break;
     }
+  }
+
+  public playSkinTransition(skin: Skin) {
+    if (!this.enabled || !this.ctx) return;
+    this.init();
+    const t = this.ctx.currentTime;
+    
+    const masterGain = this.ctx.createGain();
+    masterGain.connect(this.ctx.destination);
+    masterGain.gain.setValueAtTime(0.3, t);
+
+    if (skin === Skin.Celestia) {
+        // Angelic Chord (C Major 7 + 9)
+        const freqs = [523.25, 659.25, 783.99, 987.77, 1174.66];
+        freqs.forEach((f, i) => {
+            const osc = this.ctx!.createOscillator();
+            const g = this.ctx!.createGain();
+            osc.connect(g);
+            g.connect(masterGain);
+            
+            osc.type = i % 2 === 0 ? 'sine' : 'triangle';
+            osc.frequency.setValueAtTime(f, t);
+            
+            g.gain.setValueAtTime(0, t);
+            g.gain.linearRampToValueAtTime(0.1, t + 0.5); // Slow attack
+            g.gain.exponentialRampToValueAtTime(0.001, t + 3.0); // Long decay
+            
+            osc.start(t);
+            osc.stop(t + 3.0);
+        });
+        
+        // Whoosh
+        const noiseBuffer = this.createNoiseBuffer();
+        const noiseSrc = this.ctx.createBufferSource();
+        const noiseFilter = this.ctx.createBiquadFilter();
+        const noiseGain = this.ctx.createGain();
+        
+        noiseSrc.buffer = noiseBuffer;
+        noiseFilter.type = 'lowpass';
+        noiseFilter.frequency.setValueAtTime(200, t);
+        noiseFilter.frequency.linearRampToValueAtTime(2000, t + 1);
+        
+        noiseSrc.connect(noiseFilter);
+        noiseFilter.connect(noiseGain);
+        noiseGain.connect(masterGain);
+        
+        noiseGain.gain.setValueAtTime(0.2, t);
+        noiseGain.gain.exponentialRampToValueAtTime(0.001, t + 1.5);
+        
+        noiseSrc.start(t);
+        noiseSrc.stop(t + 1.5);
+        
+    } else if (skin === Skin.Dragon) {
+        // Deep Rumble
+        const osc = this.ctx.createOscillator();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(50, t);
+        osc.frequency.exponentialRampToValueAtTime(10, t + 1.5);
+        
+        const g = this.ctx.createGain();
+        g.gain.setValueAtTime(0.4, t);
+        g.gain.exponentialRampToValueAtTime(0.001, t + 2);
+        
+        osc.connect(g);
+        g.connect(masterGain);
+        osc.start(t);
+        osc.stop(t + 2);
+    } else {
+        // Standard Whoosh
+        const osc = this.ctx.createOscillator();
+        osc.frequency.setValueAtTime(200, t);
+        osc.frequency.exponentialRampToValueAtTime(800, t + 0.5);
+        
+        const g = this.ctx.createGain();
+        g.gain.setValueAtTime(0.1, t);
+        g.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+        
+        osc.connect(g);
+        g.connect(masterGain);
+        osc.start(t);
+        osc.stop(t + 0.5);
+    }
+  }
+
+  private createNoiseBuffer() {
+      if (!this.ctx) return null;
+      const bufferSize = this.ctx.sampleRate * 2; // 2 seconds
+      const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) {
+          data[i] = Math.random() * 2 - 1;
+      }
+      return buffer;
   }
 
   public playWin() {

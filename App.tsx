@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Player, Theme, Skin, GameState, GameMode, Difficulty, AnalysisResult, MatchRecord } from './types';
 import { createEmptyBoard, checkWin, getAIMove, analyzeMatch } from './utils/gameLogic';
@@ -56,6 +57,10 @@ function App() {
   const [whiteTime, setWhiteTime] = useState(600);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const replayIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  
+  // Track processed win to avoid duplicate stats updates in StrictMode
+  // We use a unique ID derived from move history length + last move coordinate to be very specific
+  const processedWinRef = useRef<string>("");
 
   const [pendingSkin, setPendingSkin] = useState<Skin | null>(null);
 
@@ -76,7 +81,6 @@ function App() {
     });
   }, []);
 
-  // Timer logic - this causes re-renders every second, so child components must be memoized
   useEffect(() => {
     if (hasStarted && !game.winner && !isThinking && !isReplaying) {
       timerRef.current = setInterval(() => {
@@ -93,6 +97,45 @@ function App() {
       if (timerRef.current) clearInterval(timerRef.current);
     };
   }, [hasStarted, game.winner, game.currentPlayer, isThinking, isReplaying]);
+
+  // Handle Win Side Effects (Stats, Audio, History)
+  useEffect(() => {
+    if (game.winner) {
+      const winId = `${game.moveHistory.length}`;
+      
+      if (processedWinRef.current !== winId) {
+        processedWinRef.current = winId;
+        audioController.playWin();
+
+        if (gameMode === GameMode.PvE) {
+          setStats(prevStats => {
+            const newStats = { ...prevStats, games: prevStats.games + 1 };
+            if (game.winner === Player.Black) newStats.wins++;
+            else newStats.losses++;
+            saveStats(newStats);
+            return newStats;
+          });
+        }
+
+        const record: MatchRecord = {
+          id: Date.now().toString(),
+          timestamp: Date.now(),
+          mode: gameMode,
+          difficulty: gameMode === GameMode.PvE ? difficulty : undefined,
+          winner: game.winner,
+          moves: game.moveHistory.length,
+          moveHistory: game.moveHistory,
+          skin: skin
+        };
+
+        setMatchHistory(prevH => {
+          const newH = [record, ...prevH].slice(0, 50);
+          saveHistory(newH);
+          return newH;
+        });
+      }
+    }
+  }, [game.winner, game.moveHistory, gameMode, difficulty, skin]);
 
   const executeMove = useCallback((row: number, col: number) => {
     setGame(prevGame => {
@@ -112,35 +155,6 @@ function App() {
       setHintPos(null);
       audioController.playStone(skin);
 
-      if (winningLine) {
-         audioController.playWin();
-         if (gameMode === GameMode.PvE) {
-           setStats(prevStats => {
-             const newStats = { ...prevStats, games: prevStats.games + 1 };
-             if (prevGame.currentPlayer === Player.Black) newStats.wins++;
-             else newStats.losses++;
-             saveStats(newStats);
-             return newStats;
-           });
-         }
-
-         const record: MatchRecord = {
-           id: Date.now().toString(),
-           timestamp: Date.now(),
-           mode: gameMode,
-           difficulty: gameMode === GameMode.PvE ? difficulty : undefined,
-           winner: prevGame.currentPlayer,
-           moves: newMoveHistory.length,
-           moveHistory: newMoveHistory,
-           skin: skin
-         };
-         setMatchHistory(prevH => {
-            const newH = [record, ...prevH].slice(0, 50);
-            saveHistory(newH);
-            return newH;
-         });
-      }
-
       return {
         board: newBoard,
         currentPlayer: prevGame.currentPlayer === Player.Black ? Player.White : Player.Black,
@@ -150,7 +164,7 @@ function App() {
         moveHistory: newMoveHistory
       };
     });
-  }, [skin, gameMode, difficulty]);
+  }, [skin]);
 
   // AI Turn
   useEffect(() => {
@@ -202,6 +216,7 @@ function App() {
     setWhiteTime(600);
     setIsReplaying(false);
     setAnalysisResult(null);
+    processedWinRef.current = ""; // Reset win tracking
     if (replayIntervalRef.current) clearInterval(replayIntervalRef.current);
   }, []);
 
@@ -237,7 +252,6 @@ function App() {
     setLastMove({ r: last.r, c: last.c });
   }, [game.moveHistory]);
 
-  // Replay Logic
   const startReplayInternal = useCallback((historyToPlay: typeof game.moveHistory, finalWinner: Player | null) => {
     setGame(prev => ({
       ...prev,
@@ -323,6 +337,8 @@ function App() {
     if (targetHistoryIndex < 0) return;
 
     const movesToRemove = game.moveHistory.slice(-steps);
+    // Add unique ID to trigger effect even for same coordinates if needed, 
+    // but timestamp should be enough.
     setUndoTrigger(movesToRemove.map(m => ({ r: m.r, c: m.c, ts: Date.now() })));
 
     const previousBoard = game.history[targetHistoryIndex];
@@ -381,7 +397,7 @@ function App() {
         const s = currentPending;
         if (s === Skin.Dragon || s === Skin.Nebula || s === Skin.Ocean || s === Skin.Cyber || s === Skin.Alchemy || s === Skin.Aurora) {
           setTheme(Theme.Night);
-        } else if (s === Skin.Sakura || s === Skin.Glacier || s === Skin.Ink || s === Skin.Forest || s === Skin.Sunset) {
+        } else if (s === Skin.Sakura || s === Skin.Glacier || s === Skin.Ink || s === Skin.Forest || s === Skin.Sunset || s === Skin.Celestia) {
           setTheme(Theme.Day);
         }
       }
@@ -425,6 +441,8 @@ function App() {
     titleClass = `text-transparent bg-clip-text bg-gradient-to-r from-amber-600 to-yellow-800 drop-shadow-sm`;
   } else if (skin === Skin.Aurora) {
     titleClass = `text-transparent bg-clip-text bg-gradient-to-r from-green-300 via-cyan-400 to-blue-500 drop-shadow-[0_0_15px_rgba(34,211,238,0.6)]`;
+  } else if (skin === Skin.Celestia) {
+    titleClass = `text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-yellow-400 to-amber-500 drop-shadow-[0_0_10px_rgba(251,191,36,0.6)]`;
   } else {
     titleClass = theme === Theme.Day 
       ? "text-transparent bg-clip-text bg-gradient-to-r from-stone-600 to-stone-900 drop-shadow-sm" 
@@ -447,6 +465,7 @@ function App() {
     if (skin === Skin.Ink) return '水墨模式';
     if (skin === Skin.Alchemy) return '炼金模式';
     if (skin === Skin.Aurora) return '极光模式';
+    if (skin === Skin.Celestia) return '天穹模式';
     return '五子连珠';
   };
 

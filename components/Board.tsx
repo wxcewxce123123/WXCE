@@ -43,13 +43,14 @@ const BoardCell = React.memo(({
       case Skin.Alchemy: style.background = isBlack ? 'radial-gradient(circle at 40% 40%, #57534e 0%, #292524 100%)' : 'radial-gradient(circle at 40% 40%, #fbbf24 0%, #b45309 100%)'; if(isBlack) style.border = '2px solid #a8a29e'; break;
       case Skin.Aurora: 
         if (isBlack) {
-           style.backgroundColor = 'rgba(0,0,0,0.5)';
-           style.border = '1px solid #22d3ee';
-           style.boxShadow = '0 0 15px rgba(34, 211, 238, 0.6)';
+           style.backgroundColor = 'rgba(0,0,0,0.5)'; style.border = '1px solid #22d3ee'; style.boxShadow = '0 0 15px rgba(34, 211, 238, 0.6)';
         } else {
-           style.backgroundColor = 'rgba(255,255,255,0.8)';
-           style.boxShadow = '0 0 15px rgba(255, 255, 255, 0.8)';
+           style.backgroundColor = 'rgba(255,255,255,0.8)'; style.boxShadow = '0 0 15px rgba(255, 255, 255, 0.8)';
         }
+        break;
+      case Skin.Celestia:
+        style.background = isBlack ? 'radial-gradient(circle at 30% 30%, #94a3b8 0%, #1e293b 80%, #0f172a 100%)' : 'radial-gradient(circle at 30% 30%, #fff 0%, #fef3c7 60%, #fbbf24 100%)';
+        style.boxShadow = isBlack ? '0 0 10px rgba(0,0,0,0.3)' : '0 0 15px rgba(251, 191, 36, 0.5)';
         break;
       case Skin.Dragon: style.background = isBlack ? 'radial-gradient(circle at 40% 40%, #444 0%, #111 60%, #000 100%)' : 'radial-gradient(circle at 35% 35%, #fff 0%, #fcd34d 40%, #d97706 100%)'; break;
     }
@@ -65,7 +66,7 @@ const BoardCell = React.memo(({
 
   if (isWinner) {
     finalClassName += ' z-20 transition-transform duration-500 scale-110';
-    finalStyle.boxShadow = `0 0 20px ${skin === Skin.Dragon ? '#f59e0b' : '#fff'}`;
+    finalStyle.boxShadow = `0 0 20px ${skin === Skin.Dragon || skin === Skin.Celestia ? '#f59e0b' : '#fff'}`;
   } else if (isLoser) {
     if (skin === Skin.Dragon) finalClassName += ' brightness-[0.2] grayscale contrast-150';
     else if (skin === Skin.Glacier) finalClassName += ' brightness-[1.5] opacity-50 contrast-50 hue-rotate-180';
@@ -73,6 +74,7 @@ const BoardCell = React.memo(({
     else if (skin === Skin.Cyber) finalClassName += ' opacity-30 hue-rotate-90 blur-[1px]';
     else if (skin === Skin.Ink) finalClassName += ' opacity-20 blur-sm';
     else if (skin === Skin.Alchemy) finalClassName += ' sepia brightness-[0.6]';
+    else if (skin === Skin.Celestia) finalClassName += ' opacity-60 blur-[0.5px] brightness-[1.2]';
     else finalClassName += ' grayscale opacity-40 blur-[1px]';
     finalClassName += ' transition-all duration-1000';
   }
@@ -135,11 +137,9 @@ const Board: React.FC<BoardProps> = React.memo(({
   const placementParticlesRef = useRef<any[]>([]);
   const victoryParticlesRef = useRef<any[]>([]);
 
-  // 3D Tilt State
   const targetRotate = useRef({ x: 0, y: 0 });
   const currentRotate = useRef({ x: 0, y: 0 });
 
-  // Stable handlers for Cell
   const handleCellClick = useCallback((r: number, c: number) => {
     if (!isGameOver) onCellClick(r, c);
   }, [isGameOver, onCellClick]);
@@ -148,23 +148,26 @@ const Board: React.FC<BoardProps> = React.memo(({
     setHoverPos({ r, c });
   }, []);
 
-  // Trigger landing animation on skin change
   useEffect(() => {
     setSkinChanged(true);
     const t = setTimeout(() => setSkinChanged(false), 800);
     return () => clearTimeout(t);
   }, [skin]);
 
-  // --- 3D Parallax Tilt Logic with Physics Damping ---
+  // Clean up victory particles when winningLine is cleared (Game Reset)
+  useEffect(() => {
+    if (!winningLine) {
+       victoryParticlesRef.current = [];
+    }
+  }, [winningLine]);
+
   useEffect(() => {
     let animationFrameId: number;
-
     const animateTilt = () => {
       if (boardRef.current) {
         const ease = 0.08;
         currentRotate.current.x += (targetRotate.current.x - currentRotate.current.x) * ease;
         currentRotate.current.y += (targetRotate.current.y - currentRotate.current.y) * ease;
-
         boardRef.current.style.setProperty('--rotate-x', `${currentRotate.current.x}deg`);
         boardRef.current.style.setProperty('--rotate-y', `${currentRotate.current.y}deg`);
       }
@@ -174,15 +177,11 @@ const Board: React.FC<BoardProps> = React.memo(({
     const handleMouseMove = (e: MouseEvent) => {
       const centerX = window.innerWidth / 2;
       const centerY = window.innerHeight / 2;
-      
       const deltaX = e.clientX - centerX;
       const deltaY = e.clientY - centerY;
-
       const maxDeg = 6;
-      
       const percentX = deltaX / (window.innerWidth / 2);
       const percentY = deltaY / (window.innerHeight / 2);
-
       targetRotate.current.x = -percentY * maxDeg;
       targetRotate.current.y = percentX * maxDeg;
 
@@ -201,9 +200,7 @@ const Board: React.FC<BoardProps> = React.memo(({
 
     window.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseleave', handleMouseLeave);
-    
     animateTilt();
-
     return () => {
       window.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseleave', handleMouseLeave);
@@ -211,7 +208,6 @@ const Board: React.FC<BoardProps> = React.memo(({
     };
   }, []);
 
-  // --- Procedural Texture Definitions (SVG Filters) ---
   const TEXTURES = {
     wood: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='wood'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.05 0.005' numOctaves='2' seed='2'/%3E%3CfeDisplacementMap in='SourceGraphic' scale='10'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23wood)' opacity='0.3' style='mix-blend-mode: multiply'/%3E%3C/svg%3E")`,
     stone: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.15'/%3E%3C/svg%3E")`,
@@ -225,7 +221,6 @@ const Board: React.FC<BoardProps> = React.memo(({
     aurora: `linear-gradient(135deg, rgba(255,255,255,0.05) 0%, transparent 100%)`
   };
 
-  // --- Particle Effects (Placement & Undo & Victory) ---
   useEffect(() => {
     if (lastMove && !isGameOver) {
       const canvas = canvasRef.current;
@@ -242,6 +237,7 @@ const Board: React.FC<BoardProps> = React.memo(({
         if (skin === Skin.Cyber) color = '#0ff';
         else if (skin === Skin.Dragon) color = '#f59e0b';
         else if (skin === Skin.Ink) color = '#000';
+        else if (skin === Skin.Celestia) color = '#fbbf24';
         else if (skin === Skin.Forest) color = '#4ade80';
         else if (skin === Skin.Sakura) color = '#fda4af';
         else if (skin === Skin.Sunset) color = '#fcd34d';
@@ -270,31 +266,98 @@ const Board: React.FC<BoardProps> = React.memo(({
           const cx = t.c * cellSize + cellSize / 2;
           const cy = t.r * cellSize + cellSize / 2;
           
-          for(let i=0; i<10; i++) {
+          let ringColor = '#fff';
+          if(skin===Skin.Dragon) ringColor = '#ef4444';
+          if(skin===Skin.Cyber) ringColor = '#0ff';
+          if(skin===Skin.Celestia) ringColor = '#fbbf24';
+          if(skin===Skin.Nebula) ringColor = '#a78bfa';
+
+          // 1. Shockwave Ring (Dazzling Effect)
+          placementParticlesRef.current.push({
+            x: cx, y: cy, life: 1, size: 0, max_size: cellSize * 2.5, type: 'shockwave', color: ringColor, lineWidth: 5
+          });
+          
+          // 2. Secondary Shockwave
+           placementParticlesRef.current.push({
+            x: cx, y: cy, life: 0.8, size: 0, max_size: cellSize * 1.8, type: 'shockwave', color: '#fff', lineWidth: 2
+          });
+
+          // 3. Implosion / Explosion particles
+          const count = 40; 
+          for(let i=0; i<count; i++) {
+             let color = '#fff';
+             let type = 'smoke';
+             let speed = Math.random() * 6 + 2;
+             let angle = Math.random() * Math.PI * 2;
+             
+             let vx = Math.cos(angle) * speed;
+             let vy = Math.sin(angle) * speed;
+             let size = Math.random() * 4 + 2;
+             
+             if (skin === Skin.Dragon) { 
+               color = Math.random() > 0.5 ? '#ef4444' : '#f59e0b'; 
+               type = 'ember'; 
+               vx *= 1.5; vy *= 1.5; 
+             } 
+             else if (skin === Skin.Cyber) { 
+               color = Math.random() > 0.5 ? '#0ff' : '#f0f'; 
+               type = 'digit'; 
+               vy = -Math.random() * 10 - 5; // Matrix rain up
+               vx = (Math.random() - 0.5) * 2;
+             } 
+             else if (skin === Skin.Celestia) {
+               color = '#fef3c7'; type = 'feather';
+               vx *= 1.2; vy *= 1.2;
+             }
+             else if (skin === Skin.Glacier) { 
+               color = '#e0f2fe'; type = 'shard'; 
+               vx *= 1.5; vy *= 1.5;
+             } 
+             else if (skin === Skin.Forest) { 
+               color = '#a7f3d0'; type = 'leaf'; 
+               vx *= 0.8; vy = -Math.random() * 5;
+             } 
+             else if (skin === Skin.Ocean) { 
+               color = '#bae6fd'; type = 'bubble'; 
+               vy = -Math.random() * 5; 
+             } 
+             else if (skin === Skin.Sakura) { 
+               color = '#fda4af'; type = 'petal'; 
+               vx = Math.cos(angle) * speed * 0.5;
+               vy = Math.sin(angle) * speed * 0.5; 
+             } 
+             else if (skin === Skin.Ink) { 
+               color = '#000'; type = 'ink'; 
+               size *= 1.5;
+             } 
+             else if (skin === Skin.Alchemy) {
+               color = '#fbbf24'; type = 'gold';
+             }
+             else if (skin === Skin.Aurora) {
+               color = '#67e8f9'; type = 'glow';
+             }
+
              placementParticlesRef.current.push({ 
                x: cx, y: cy, 
-               vx: (Math.random()-0.5)*5, vy: (Math.random()-0.5)*5, 
-               life: 1, color: '#fff', size: 3, type: 'smoke' 
+               vx, vy, 
+               life: 1, color, size, type 
              });
           }
        });
     }
   }, [undoTrigger, skin]);
 
-  // Combined Render Loop for Particles (Canvas)
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Reset logic to handle dynamic resizing inside loop
     let animationId: number;
     let frame = 0;
 
-    // --- Inner Particle Class for Rendering ---
     class GameParticle {
-      x: number; y: number; vx: number; vy: number; life: number; size: number; color: string; type: string;
+      x: number; y: number; vx: number; vy: number; life: number; size: number; color: string; type: string; max_size?: number; lineWidth?: number;
       constructor(x: number, y: number, type: string) {
         this.x = x + (Math.random() - 0.5) * 10;
         this.y = y + (Math.random() - 0.5) * 10;
@@ -303,6 +366,7 @@ const Board: React.FC<BoardProps> = React.memo(({
         
         switch(type) {
            case 'ember': this.vx = (Math.random() - 0.5) * 2; this.vy = Math.random() * -3 - 1; this.size = Math.random() * 4 + 2; this.color = '#fbbf24'; break;
+           case 'feather': this.vx = (Math.random()-0.5)*2; this.vy = Math.random()*2 - 1; this.size = Math.random()*6+3; this.color = '#fff'; break;
            case 'leaf': this.vx = (Math.random() - 0.5) * 3; this.vy = Math.random() * 2 + 1; this.size = Math.random() * 6 + 2; this.color = Math.random() > 0.5 ? '#4ade80' : '#166534'; break;
            case 'bubble': this.vx = (Math.random() - 0.5) * 1; this.vy = Math.random() * -2 - 1; this.size = Math.random() * 5 + 2; this.color = 'rgba(125, 211, 252, 0.6)'; break;
            case 'petal': this.vx = (Math.random() - 0.5) * 3; this.vy = Math.random() * 1 + 0.5; this.size = Math.random() * 5 + 3; this.color = '#fda4af'; break;
@@ -329,6 +393,9 @@ const Board: React.FC<BoardProps> = React.memo(({
          if (this.type === 'digit') { ctx.font = '10px monospace'; ctx.fillText(Math.random() > 0.5 ? '1' : '0', this.x, this.y); }
          else if (this.type === 'shard') { ctx.beginPath(); ctx.moveTo(this.x, this.y); ctx.lineTo(this.x + this.size, this.y + this.size); ctx.lineTo(this.x - this.size, this.y + this.size); ctx.fill(); }
          else if (this.type === 'leaf') { ctx.beginPath(); ctx.ellipse(this.x, this.y, this.size, this.size/2, frame*0.1, 0, Math.PI*2); ctx.fill(); }
+         else if (this.type === 'feather') { 
+            ctx.beginPath(); ctx.ellipse(this.x, this.y, this.size, this.size/3, this.life*5, 0, Math.PI*2); ctx.fill(); 
+         }
          else if (this.type === 'cog') { ctx.font = '12px serif'; ctx.fillText('⚙', this.x, this.y); }
          else { ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI*2); ctx.fill(); }
          ctx.restore();
@@ -340,18 +407,15 @@ const Board: React.FC<BoardProps> = React.memo(({
         const rect = canvas.getBoundingClientRect();
         const dpr = window.devicePixelRatio || 1;
         
-        // Dynamic resize check
         if (canvas.width !== rect.width * dpr || canvas.height !== rect.height * dpr) {
             canvas.width = rect.width * dpr;
             canvas.height = rect.height * dpr;
-            // Restore scale after resize clears context
             ctx.setTransform(1, 0, 0, 1, 0, 0);
             ctx.scale(dpr, dpr);
         }
 
         const cellSize = rect.width / BOARD_SIZE;
         
-        // Recalculate Winning Line Points based on live cellSize to prevent offsets
         let points: {x: number, y: number}[] = [];
         if (winningLine) {
             points = winningLine.map(([r, c]) => ({
@@ -362,16 +426,63 @@ const Board: React.FC<BoardProps> = React.memo(({
 
         ctx.clearRect(0, 0, rect.width, rect.height);
         
-        // 1. Render Placement/Undo Particles
         for (let i = placementParticlesRef.current.length - 1; i >= 0; i--) {
             const p = placementParticlesRef.current[i];
-            p.x += p.vx; p.y += p.vy; p.life -= 0.05;
-            ctx.globalAlpha = Math.max(0, p.life); ctx.fillStyle = p.color;
-            ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill();
+            
+            if (p.type === 'shockwave') {
+               // Dazzling Shockwave Logic
+               p.size += 5; // Fast expansion
+               p.life -= 0.03;
+               ctx.save();
+               ctx.strokeStyle = p.color;
+               ctx.lineWidth = p.lineWidth || 3;
+               ctx.globalAlpha = Math.max(0, p.life);
+               ctx.shadowBlur = 10;
+               ctx.shadowColor = p.color;
+               ctx.beginPath();
+               ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+               ctx.stroke();
+               ctx.restore();
+            } else {
+               p.x += p.vx; p.y += p.vy; p.life -= 0.04;
+               
+               ctx.save();
+               ctx.globalAlpha = Math.max(0, p.life); 
+               ctx.fillStyle = p.color;
+               
+               if (p.type === 'digit') { ctx.font = '10px monospace'; ctx.fillText(Math.random() > 0.5 ? '1' : '0', p.x, p.y); }
+               else if (p.type === 'shard') { ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x + p.size, p.y + p.size); ctx.lineTo(p.x - p.size, p.y + p.size); ctx.fill(); }
+               else if (p.type === 'feather') { ctx.beginPath(); ctx.ellipse(p.x, p.y, p.size, p.size/3, p.life*5, 0, Math.PI*2); ctx.fill(); }
+               else if (p.type === 'leaf') { ctx.beginPath(); ctx.ellipse(p.x, p.y, p.size, p.size/2, frame*0.1, 0, Math.PI*2); ctx.fill(); }
+               else if (p.type === 'cog') { ctx.font = '12px serif'; ctx.fillText('⚙', p.x, p.y); }
+               else if (p.type === 'petal') {
+                   ctx.translate(p.x, p.y); ctx.rotate(frame * 0.1);
+                   ctx.beginPath(); ctx.moveTo(0,0); ctx.quadraticCurveTo(p.size/2, -p.size, p.size, 0); ctx.quadraticCurveTo(p.size/2, p.size, 0,0); ctx.fill();
+               }
+               else if (p.type === 'bubble') {
+                   ctx.strokeStyle = p.color; ctx.lineWidth = 1;
+                   ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.stroke();
+               }
+               else if (p.type === 'ink') {
+                   ctx.beginPath(); ctx.arc(p.x, p.y, p.size * (2 - p.life), 0, Math.PI*2); ctx.fill();
+               }
+               else if (p.type === 'smoke' || p.type === 'ember') {
+                   p.vy -= 0.05; p.size *= 1.02; 
+                   ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill();
+               }
+               else if (p.type === 'glow') {
+                   ctx.shadowBlur = 10; ctx.shadowColor = p.color;
+                   ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill();
+               }
+               else { 
+                   ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill(); 
+               }
+               ctx.restore();
+            }
+
             if (p.life <= 0) placementParticlesRef.current.splice(i, 1);
         }
         
-        // 2. Victory Particle Spawner
         if (winningLine && points.length > 0 && frame % 2 === 0) {
            const randPoint = points[Math.floor(Math.random() * points.length)];
            let type = 'confetti';
@@ -379,24 +490,24 @@ const Board: React.FC<BoardProps> = React.memo(({
            else if (skin === Skin.Sakura) type = 'petal'; else if (skin === Skin.Nebula) type = 'star'; else if (skin === Skin.Sunset) type = 'sand';
            else if (skin === Skin.Glacier) type = 'shard'; else if (skin === Skin.Cyber) type = 'digit'; else if (skin === Skin.Ink) type = 'ink';
            else if (skin === Skin.Alchemy) type = 'cog'; else if (skin === Skin.Aurora) type = 'glow';
+           else if (skin === Skin.Celestia) type = 'feather';
            else if (skin === Skin.Classic) type = 'gold';
            victoryParticlesRef.current.push(new GameParticle(randPoint.x, randPoint.y, type));
         }
 
-        // 3. Render Winning Line
         if (winningLine && points.length > 0) {
              ctx.save();
              ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-             // Default Line Style
              ctx.strokeStyle = '#fff'; ctx.lineWidth = 4; ctx.shadowBlur=20; ctx.shadowColor='#fff';
              
-             // Custom Line Styles per Skin
              if (skin === Skin.Alchemy) {
                 ctx.shadowColor = '#d97706'; ctx.strokeStyle = '#f59e0b'; ctx.setLineDash([10, 5]);
              } else if (skin === Skin.Dragon) {
                 ctx.shadowColor = '#f97316'; ctx.shadowBlur = 30 + Math.sin(frame * 0.2) * 10;
              } else if (skin === Skin.Cyber) {
                 ctx.shadowColor = '#0ff'; ctx.strokeStyle = '#0ff'; ctx.setLineDash([Math.random()*20, 5]);
+             } else if (skin === Skin.Celestia) {
+                ctx.shadowColor = '#fbbf24'; ctx.strokeStyle = '#fff'; ctx.shadowBlur=30; ctx.lineWidth=5;
              } else if (skin === Skin.Forest) {
                 ctx.strokeStyle = '#4ade80'; ctx.shadowColor = '#166534';
              } else if (skin === Skin.Ink) {
@@ -404,15 +515,11 @@ const Board: React.FC<BoardProps> = React.memo(({
              } else if (skin === Skin.Aurora) {
                 ctx.shadowColor = '#22d3ee'; ctx.strokeStyle = '#67e8f9'; ctx.shadowBlur = 30;
              } else if (skin === Skin.Classic) {
-                // Classic: Refined Metallic Gold Beam
                 ctx.shadowColor = 'rgba(0,0,0,0.2)'; ctx.shadowBlur = 5;
-                // Outer dark gold stroke
                 ctx.strokeStyle = '#b45309'; ctx.lineWidth = 6; ctx.lineCap = 'butt';
                 ctx.beginPath(); points.forEach((p, i) => { if(i===0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); }); ctx.stroke();
-                // Inner bright gold
                 ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 3; ctx.lineCap = 'round';
                 ctx.beginPath(); points.forEach((p, i) => { if(i===0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); }); ctx.stroke();
-                // Highlight glint
                 ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.globalAlpha = 0.6 + Math.sin(frame * 0.1) * 0.4;
              }
 
@@ -422,7 +529,6 @@ const Board: React.FC<BoardProps> = React.memo(({
              ctx.restore();
         }
 
-        // 4. Render Victory Particles
         for (let i = victoryParticlesRef.current.length - 1; i >= 0; i--) {
           const vp = victoryParticlesRef.current[i]; 
           vp.update(); 
@@ -448,7 +554,7 @@ const Board: React.FC<BoardProps> = React.memo(({
       transformStyle: 'preserve-3d',
       aspectRatio: '1 / 1', 
       backgroundBlendMode: 'overlay',
-      overflow: 'hidden' // Ensure inner elements are clipped to the board border
+      overflow: 'hidden' 
     };
     switch (skin) {
       case Skin.Classic: styles.backgroundColor = theme === Theme.Day ? '#e6b36e' : '#5c3d22'; styles.backgroundImage = TEXTURES.wood; styles.border = '12px solid #5d4037'; break;
@@ -462,6 +568,7 @@ const Board: React.FC<BoardProps> = React.memo(({
       case Skin.Ink: styles.backgroundColor = theme === Theme.Day ? '#f5f5f4' : '#292524'; styles.backgroundImage = TEXTURES.paper; styles.border = theme === Theme.Day ? '1px solid #a8a29e' : '1px solid #444'; break;
       case Skin.Alchemy: styles.backgroundColor = '#292524'; styles.backgroundImage = TEXTURES.metal; styles.border = '8px solid #78350f'; break;
       case Skin.Aurora: styles.backgroundColor = '#020617'; styles.backgroundImage = TEXTURES.aurora; styles.border = '4px solid #0ea5e9'; break;
+      case Skin.Celestia: styles.backgroundColor = '#f8fafc'; styles.backgroundImage = TEXTURES.marble; styles.border = '8px solid #e2e8f0'; break;
       case Skin.Dragon: default: styles.backgroundColor = '#1a0500'; styles.backgroundImage = `radial-gradient(circle at 50% 50%, rgba(255, 100, 0, 0.05) 0%, transparent 60%), repeating-linear-gradient(45deg, rgba(0,0,0,0.4) 0px, rgba(0,0,0,0.4) 2px, transparent 2px, transparent 8px), ${TEXTURES.magma}`; styles.border = '4px solid #451a03'; break;
     }
     return styles;
@@ -472,7 +579,7 @@ const Board: React.FC<BoardProps> = React.memo(({
       case Skin.Dragon: return '#d97706'; case Skin.Forest: return '#a7f3d0'; case Skin.Ocean: return '#38bdf8';
       case Skin.Sakura: return '#f43f5e'; case Skin.Nebula: return '#c084fc'; case Skin.Sunset: return '#fed7aa';
       case Skin.Glacier: return '#fff'; case Skin.Cyber: return '#22d3ee'; case Skin.Ink: return theme === Theme.Day ? '#444' : '#a8a29e';
-      case Skin.Alchemy: return '#d97706'; case Skin.Aurora: return '#67e8f9';
+      case Skin.Alchemy: return '#d97706'; case Skin.Aurora: return '#67e8f9'; case Skin.Celestia: return '#fbbf24';
       default: return theme === Theme.Night ? '#a16207' : '#5d4037';
     }
   };
@@ -492,10 +599,8 @@ const Board: React.FC<BoardProps> = React.memo(({
              style={{ display: 'grid', gridTemplateColumns: `repeat(${BOARD_SIZE}, 1fr)`, gridTemplateRows: `repeat(${BOARD_SIZE}, 1fr)` }} 
              onMouseLeave={() => setHoverPos(null)}>
           
-          {/* Canvas for Particles & Victory Line (MOVED INSIDE GRID to align coordinates) */}
           <canvas ref={canvasRef} className="absolute inset-0 z-30 pointer-events-none w-full h-full" />
 
-          {/* Grid Lines Overlay */}
           <div className={`absolute inset-0 pointer-events-none z-0 transition-opacity duration-1000 ${winningLine ? 'opacity-30' : 'opacity-80'}`}>
              {Array.from({ length: BOARD_SIZE }).map((_, i) => (
                <React.Fragment key={i}>
@@ -503,13 +608,11 @@ const Board: React.FC<BoardProps> = React.memo(({
                  <div className="absolute w-[1px] h-full transform -translate-x-1/2" style={{ backgroundColor: getLineColor(), left: `${(i * 100) / BOARD_SIZE + (50 / BOARD_SIZE)}%` }} />
                </React.Fragment>
              ))}
-             {/* Star Points (Hoshi) */}
              {[3, 7, 11].map(r => [3, 7, 11].map(c => (
                 <div key={`star-${r}-${c}`} className="absolute w-1.5 h-1.5 rounded-full transform -translate-x-1/2 -translate-y-1/2 z-0 shadow-sm" style={{ top: `${(r * 100) / BOARD_SIZE + (50 / BOARD_SIZE)}%`, left: `${(c * 100) / BOARD_SIZE + (50 / BOARD_SIZE)}%`, backgroundColor: getLineColor() }} />
              )))}
           </div>
 
-          {/* Memoized Cells */}
           {board.map((row, r) => (
             row.map((cellState, c) => (
               <BoardCell 

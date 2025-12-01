@@ -28,17 +28,13 @@ const Background: React.FC<BackgroundProps> = ({ theme, skin }) => {
     resizeCanvas();
 
     // --- Optimization: Pre-render Cache for Runes ---
-    // Text rendering with shadows is extremely expensive in Canvas (CPU bottleneck). 
-    // We pre-render unique runes to small off-screen canvases to drastically improve performance 
-    // for the Alchemy skin without removing any visual effects.
     const runeCache: Record<string, HTMLCanvasElement> = {};
     const runesList = ['⚙', '⚗', '⚡', '⌬', '⚔', '⏣'];
     
-    // Always pre-render if skin matches to ensure readiness
     if (skin === Skin.Alchemy) {
       runesList.forEach(char => {
         const c = document.createElement('canvas');
-        const size = 64; // High resolution for crisp scaling
+        const size = 64; 
         c.width = size;
         c.height = size;
         const cCtx = c.getContext('2d');
@@ -48,7 +44,7 @@ const Background: React.FC<BackgroundProps> = ({ theme, skin }) => {
           cCtx.textBaseline = 'middle';
           cCtx.fillStyle = '#b45309';
           cCtx.shadowColor = '#d97706';
-          cCtx.shadowBlur = 10; // Bake the expensive shadow into the image
+          cCtx.shadowBlur = 10; 
           cCtx.fillText(char, size/2, size/2);
         }
         runeCache[char] = c;
@@ -227,8 +223,6 @@ const Background: React.FC<BackgroundProps> = ({ theme, skin }) => {
       }
     }
 
-    // --- New Particles ---
-
     class RuneParticle {
       x: number; y: number; char: string; size: number; rotation: number; rotSpeed: number; vy: number;
       constructor() {
@@ -250,13 +244,10 @@ const Background: React.FC<BackgroundProps> = ({ theme, skin }) => {
         ctx.translate(this.x, this.y); 
         ctx.rotate(this.rotation);
         
-        // Optimized Drawing: Use Cache if available
         if (runeCache[this.char]) {
-           // Draw image instead of text for 10x performance boost
            const cache = runeCache[this.char];
            ctx.drawImage(cache, -this.size/2, -this.size/2, this.size, this.size);
         } else {
-           // Fallback (slow)
            ctx.fillStyle = '#b45309';
            ctx.shadowColor = '#d97706'; ctx.shadowBlur = 5;
            ctx.font = `${this.size}px serif`;
@@ -277,12 +268,30 @@ const Background: React.FC<BackgroundProps> = ({ theme, skin }) => {
       }
     }
 
+    class CloudMote {
+      x: number; y: number; size: number; vy: number; opacity: number;
+      constructor() {
+        this.x = Math.random() * canvas!.width; this.y = Math.random() * canvas!.height;
+        this.size = Math.random() * 40 + 20; this.vy = -Math.random() * 0.5 - 0.1;
+        this.opacity = Math.random() * 0.1 + 0.05;
+      }
+      update() {
+        this.y += this.vy; if (this.y < -50) { this.y = canvas!.height + 50; this.x = Math.random() * canvas!.width; }
+      }
+      draw() {
+        if (!ctx) return;
+        ctx.save(); ctx.globalAlpha = this.opacity; ctx.fillStyle = '#fff';
+        ctx.shadowBlur = 20; ctx.shadowColor = '#fff';
+        ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI*2); ctx.fill();
+        ctx.restore();
+      }
+    }
+
     // --- Init ---
     
     const initParticles = () => {
       particles = [];
       const mobile = window.innerWidth < 768;
-      // High Quality Default: Mobile 40, Desktop 100
       let count = mobile ? 40 : 100;
       
       for (let i = 0; i < count; i++) {
@@ -297,6 +306,7 @@ const Background: React.FC<BackgroundProps> = ({ theme, skin }) => {
         else if (skin === Skin.Ink) { if (i % 5 === 0) particles.push(new InkDrop()); }
         else if (skin === Skin.Alchemy) particles.push(new RuneParticle());
         else if (skin === Skin.Aurora) particles.push(new AuroraParticle());
+        else if (skin === Skin.Celestia) particles.push(new CloudMote());
         else if (theme === Theme.Day) particles.push(new Sakura(false));
         else particles.push(new Firefly());
       }
@@ -337,13 +347,17 @@ const Background: React.FC<BackgroundProps> = ({ theme, skin }) => {
       } else if (skin === Skin.Alchemy) {
         gradient.addColorStop(0, '#271c19'); gradient.addColorStop(0.5, '#43302b'); gradient.addColorStop(1, '#57534e');
       } else if (skin === Skin.Aurora) {
-        // Dynamic Aurora Gradient
         const shift = Math.sin(t) * 0.2;
         gradient.addColorStop(0, '#020617'); 
         gradient.addColorStop(0.3 + shift, '#064e3b'); 
         gradient.addColorStop(0.5, '#0c4a6e');
         gradient.addColorStop(0.7 - shift, '#4c1d95');
         gradient.addColorStop(1, '#020617');
+      } else if (skin === Skin.Celestia) {
+        // Heavenly white/gold/blue
+        gradient.addColorStop(0, '#f8fafc');
+        gradient.addColorStop(0.5, '#e0f2fe');
+        gradient.addColorStop(1, '#fef9c3');
       } else if (theme === Theme.Day) {
         gradient.addColorStop(0, '#fdfbf7'); gradient.addColorStop(1, '#e3e8f0'); 
       } else {
