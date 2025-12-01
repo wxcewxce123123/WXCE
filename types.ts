@@ -58,7 +58,7 @@ export interface GameState {
 }
 
 // --- Analysis Types ---
-export type MoveType = 'victory' | 'attack' | 'defense' | 'brilliant' | 'normal' | 'blunder';
+export type MoveType = 'victory' | 'attack' | 'defense' | 'brilliant' | 'normal' | 'mistake' | 'blunder';
 
 export interface MoveAnalysis {
   moveIndex: number;
@@ -68,13 +68,26 @@ export interface MoveAnalysis {
   type: MoveType;
   score: number;
   description: string;
+  advantage: number; // -100 to 100 (Black to White)
+}
+
+export interface PlayerStats {
+  accuracy: number; // 0-100
+  aggression: number; // 0-100
+  defense: number; // 0-100
+  stability: number; // 0-100
+  complexity: number; // 0-100
+  endgame: number; // 0-100
 }
 
 export interface AnalysisResult {
   totalMoves: number;
-  blackAccuracy: number; // 0-100 placeholder
-  whiteAccuracy: number; // 0-100 placeholder
+  winner: Player | null;
+  blackStats: PlayerStats;
+  whiteStats: PlayerStats;
+  advantageCurve: number[]; // Array of values from -100 (White Max) to 100 (Black Max)
   keyMoves: MoveAnalysis[];
+  summary: string;
 }
 
 // --- History Types ---
