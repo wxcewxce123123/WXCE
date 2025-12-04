@@ -1,5 +1,6 @@
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+
+import React, { useState, useEffect, useRef, useCallback, useImperativeHandle, forwardRef } from 'react';
 import { Player, Theme, Skin } from '../types';
 import { BOARD_SIZE } from '../utils/gameLogic';
 
@@ -118,7 +119,11 @@ interface BoardProps {
   undoTrigger: {r: number, c: number, ts: number}[] | null;
 }
 
-const Board: React.FC<BoardProps> = React.memo(({ 
+export interface BoardRef {
+  captureScreenshot: () => Promise<string | null>;
+}
+
+const Board = React.memo(forwardRef<BoardRef, BoardProps>(({ 
   board, 
   onCellClick, 
   winningLine, 
@@ -129,7 +134,7 @@ const Board: React.FC<BoardProps> = React.memo(({
   lastMove,
   hintPos,
   undoTrigger,
-}) => {
+}, ref) => {
   const [hoverPos, setHoverPos] = useState<{r: number, c: number} | null>(null);
   const [skinChanged, setSkinChanged] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -139,6 +144,83 @@ const Board: React.FC<BoardProps> = React.memo(({
 
   const targetRotate = useRef({ x: 0, y: 0 });
   const currentRotate = useRef({ x: 0, y: 0 });
+
+  useImperativeHandle(ref, () => ({
+    captureScreenshot: async () => {
+      if (!boardRef.current) return null;
+      try {
+        // Simple HTML2Canvas approach won't capture WebGL/Canvas particles well mixed with DOM
+        // Since we have a hybrid DOM + Canvas board, we can't easily export.
+        // HOWEVER, for a simple screenshot, we can just grab the underlying visual board container?
+        // Actually, html2canvas is heavy. Let's just create a quick composite or just fallback to user screenshot.
+        // A better approach for this app is using `html-to-image` but we don't have it imported.
+        // We will try a different approach: 
+        // 1. Create a canvas
+        // 2. Draw the background
+        // 3. Draw grid
+        // 4. Draw stones
+        // This is pure JS drawing for export.
+        
+        const exportCanvas = document.createElement('canvas');
+        const size = 1000;
+        exportCanvas.width = size;
+        exportCanvas.height = size;
+        const ctx = exportCanvas.getContext('2d');
+        if (!ctx) return null;
+        
+        // Background
+        ctx.fillStyle = theme === Theme.Day ? '#f5f5f4' : '#1c1917';
+        if (skin === Skin.Classic) ctx.fillStyle = '#e6b36e';
+        if (skin === Skin.Forest) ctx.fillStyle = '#2f4f4f';
+        if (skin === Skin.Dragon) ctx.fillStyle = '#1a0500';
+        ctx.fillRect(0,0,size,size);
+        
+        // Grid
+        const cellSize = size / BOARD_SIZE;
+        ctx.strokeStyle = 'rgba(128,128,128,0.5)';
+        ctx.lineWidth = 2;
+        if (skin === Skin.Dragon) ctx.strokeStyle = '#d97706';
+        
+        for(let i=0; i<BOARD_SIZE; i++) {
+            const p = i * cellSize + cellSize/2;
+            ctx.beginPath(); ctx.moveTo(cellSize/2, p); ctx.lineTo(size-cellSize/2, p); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(p, cellSize/2); ctx.lineTo(p, size-cellSize/2); ctx.stroke();
+        }
+        
+        // Stones
+        board.forEach((row, r) => {
+            row.forEach((cell, c) => {
+                if (cell !== Player.None) {
+                   const cx = c * cellSize + cellSize/2;
+                   const cy = r * cellSize + cellSize/2;
+                   const r_stone = cellSize * 0.4;
+                   
+                   ctx.beginPath();
+                   ctx.arc(cx, cy, r_stone, 0, Math.PI*2);
+                   ctx.fillStyle = cell === Player.Black ? '#000' : '#fff';
+                   
+                   if (skin === Skin.Dragon && cell === Player.Black) ctx.fillStyle = '#111';
+                   if (skin === Skin.Dragon && cell === Player.White) ctx.fillStyle = '#fcd34d';
+                   
+                   ctx.fill();
+                   
+                   // Gradient/Shine
+                   const grad = ctx.createRadialGradient(cx - r_stone/3, cy - r_stone/3, r_stone/10, cx, cy, r_stone);
+                   grad.addColorStop(0, 'rgba(255,255,255,0.4)');
+                   grad.addColorStop(1, 'rgba(255,255,255,0)');
+                   ctx.fillStyle = grad;
+                   ctx.fill();
+                }
+            });
+        });
+
+        return exportCanvas.toDataURL('image/png');
+      } catch (e) {
+        console.error(e);
+        return null;
+      }
+    }
+  }));
 
   const handleCellClick = useCallback((r: number, c: number) => {
     if (!isGameOver) onCellClick(r, c);
@@ -636,6 +718,6 @@ const Board: React.FC<BoardProps> = React.memo(({
       </div>
     </div>
   );
-});
+}));
 
 export default Board;

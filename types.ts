@@ -29,12 +29,14 @@ export enum Skin {
 export enum GameMode {
   PvP = 'pvp',
   PvE = 'pve',
+  Puzzle = 'puzzle', 
 }
 
 export enum Difficulty {
   Easy = 'easy',
   Medium = 'medium',
   Hard = 'hard',
+  Extreme = 'extreme', // 地狱模式
 }
 
 export interface CellData {
@@ -45,7 +47,7 @@ export interface CellData {
 
 export interface WinState {
   winner: Player;
-  line: number[][]; // Array of [row, col] coordinates
+  line: number[][]; 
 }
 
 export interface GameState {
@@ -53,8 +55,24 @@ export interface GameState {
   currentPlayer: Player;
   winner: Player | null;
   winningLine: number[][] | null;
-  history: Player[][][]; // For undo functionality
-  moveHistory: {r: number, c: number, player: Player}[]; // For replay functionality
+  history: Player[][][]; 
+  moveHistory: {r: number, c: number, player: Player}[]; 
+  openingName?: string; 
+}
+
+export interface GameSettings {
+  timeLimit: number; 
+  zenMode: boolean;
+}
+
+// --- Dynamic Puzzle State ---
+export interface PuzzleState {
+  board: Player[][];
+  nextPlayer: Player;
+  difficulty: Difficulty;
+  title: string;
+  description: string;
+  moveHistory: {r: number, c: number, player: Player}[];
 }
 
 // --- Analysis Types ---
@@ -68,16 +86,16 @@ export interface MoveAnalysis {
   type: MoveType;
   score: number;
   description: string;
-  advantage: number; // -100 to 100 (Black to White)
+  winRate: number; 
 }
 
 export interface PlayerStats {
-  accuracy: number; // 0-100
-  aggression: number; // 0-100
-  defense: number; // 0-100
-  stability: number; // 0-100
-  complexity: number; // 0-100
-  endgame: number; // 0-100
+  accuracy: number; 
+  aggression: number; 
+  defense: number; 
+  stability: number; 
+  complexity: number; 
+  endgame: number; 
 }
 
 export interface AnalysisResult {
@@ -85,12 +103,12 @@ export interface AnalysisResult {
   winner: Player | null;
   blackStats: PlayerStats;
   whiteStats: PlayerStats;
-  advantageCurve: number[]; // Array of values from -100 (White Max) to 100 (Black Max)
+  advantageCurve: number[]; 
+  winRateCurve: number[]; 
   keyMoves: MoveAnalysis[];
   summary: string;
 }
 
-// --- History Types ---
 export interface MatchRecord {
   id: string;
   timestamp: number;
@@ -100,4 +118,5 @@ export interface MatchRecord {
   moves: number;
   moveHistory: {r: number, c: number, player: Player}[];
   skin: Skin;
+  timeLimit?: number;
 }

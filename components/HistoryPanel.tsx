@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { MatchRecord, Player, GameMode, Skin } from '../types';
+import { MatchRecord, Player, GameMode, Skin, Theme } from '../types';
 import { X, Clock, Calendar, Sword, Cpu, Trophy, Trash2, PlayCircle } from 'lucide-react';
 
 interface HistoryPanelProps {
@@ -9,13 +9,24 @@ interface HistoryPanelProps {
   onLoadMatch: (record: MatchRecord) => void;
   onClearHistory: () => void;
   skin: Skin;
+  theme: Theme;
 }
 
-const HistoryPanel: React.FC<HistoryPanelProps> = ({ history, onClose, onLoadMatch, onClearHistory, skin }) => {
+const HistoryPanel: React.FC<HistoryPanelProps> = ({ history, onClose, onLoadMatch, onClearHistory, skin, theme }) => {
   const isDragon = skin === Skin.Dragon;
+  
+  // New UI
   const panelBg = isDragon 
-    ? "bg-black/90 border-amber-500/30 text-amber-100" 
-    : "bg-white/90 border-white/40 text-stone-800 dark:bg-slate-900/90 dark:text-slate-100";
+    ? "bg-black/90 border-amber-500/30 text-amber-100 backdrop-blur-xl" 
+    : (theme === Theme.Day 
+        ? "bg-white/90 border-white/60 text-slate-800 backdrop-blur-xl shadow-2xl" 
+        : "bg-slate-900/90 border-white/10 text-slate-100 backdrop-blur-xl shadow-2xl shadow-black");
+
+  const itemBg = isDragon
+    ? "hover:bg-amber-900/20 hover:border-amber-500/30 bg-black/20"
+    : (theme === Theme.Day
+        ? "hover:bg-slate-100 bg-white/50 border-transparent hover:border-slate-200"
+        : "hover:bg-white/10 bg-black/20 border-transparent hover:border-white/10");
 
   const formatDate = (ts: number) => {
     return new Date(ts).toLocaleString('zh-CN', {
@@ -28,13 +39,13 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ history, onClose, onLoadMat
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-[popIn_0.3s_ease-out]">
-      <div className={`w-full max-w-lg rounded-2xl shadow-2xl border backdrop-blur-md flex flex-col max-h-[80vh] overflow-hidden ${panelBg}`}>
+      <div className={`w-full max-w-lg rounded-3xl shadow-2xl border flex flex-col max-h-[80vh] overflow-hidden ${panelBg}`}>
         
         {/* Header */}
-        <div className="p-5 border-b border-black/10 flex justify-between items-center shrink-0">
+        <div className="p-5 border-b border-black/5 dark:border-white/5 flex justify-between items-center shrink-0">
           <div>
             <h2 className="text-xl font-bold font-serif flex items-center gap-2">
-              <Clock size={20} className={isDragon ? "text-amber-500" : "text-cyan-500"} />
+              <Clock size={20} className={isDragon ? "text-amber-500" : (theme === Theme.Day ? "text-slate-600" : "text-slate-400")} />
               历史对局
             </h2>
             <p className="text-xs opacity-60 mt-1">Match History</p>
@@ -53,7 +64,7 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ history, onClose, onLoadMat
                 <Trash2 size={18} />
               </button>
             )}
-            <button onClick={onClose} className="p-2 rounded-full hover:bg-black/10 transition-colors">
+            <button onClick={onClose} className="p-2 rounded-full hover:bg-black/10 dark:hover:bg-white/10 transition-colors">
               <X size={20} />
             </button>
           </div>
@@ -71,9 +82,7 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ history, onClose, onLoadMat
               <div 
                 key={record.id}
                 onClick={() => onLoadMatch(record)}
-                className={`p-3 rounded-lg cursor-pointer transition-all border border-transparent flex items-center gap-4 group ${
-                  isDragon ? 'hover:bg-amber-900/20 hover:border-amber-500/30 bg-black/20' : 'hover:bg-black/5 hover:border-black/10 bg-black/5'
-                }`}
+                className={`p-3 rounded-2xl cursor-pointer transition-all border flex items-center gap-4 group ${itemBg}`}
               >
                 {/* Winner Icon */}
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 shadow-sm ${
@@ -90,7 +99,7 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ history, onClose, onLoadMat
                         {record.winner === Player.Black ? '黑方胜' : '白方胜'}
                      </span>
                      <span className={`text-[10px] px-1.5 py-0.5 rounded ml-auto flex items-center gap-1 ${
-                        isDragon ? 'bg-amber-900/50 text-amber-200' : 'bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
+                        isDragon ? 'bg-amber-900/50 text-amber-200' : (theme === Theme.Day ? 'bg-slate-200 text-slate-700' : 'bg-slate-800 text-slate-300')
                      }`}>
                         {record.mode === GameMode.PvP ? <Sword size={10} /> : <Cpu size={10} />}
                         {record.mode === GameMode.PvP ? '双人' : `人机 (${record.difficulty})`}
@@ -103,14 +112,14 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ history, onClose, onLoadMat
                 </div>
                 
                 <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                   <PlayCircle size={20} className={isDragon ? "text-amber-500" : "text-blue-500"} />
+                   <PlayCircle size={20} className={isDragon ? "text-amber-500" : (theme === Theme.Day ? "text-slate-400" : "text-white")} />
                 </div>
               </div>
             ))
           )}
         </div>
         
-        <div className="p-4 border-t border-black/10 text-center text-xs opacity-50">
+        <div className="p-4 border-t border-black/5 dark:border-white/5 text-center text-xs opacity-50">
            点击记录可进行回放
         </div>
 

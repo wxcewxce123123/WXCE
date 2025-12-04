@@ -1,17 +1,194 @@
 
+
 import { Skin } from '../types';
+
+class AmbientController {
+  private ctx: AudioContext | null = null;
+  private masterGain: GainNode | null = null;
+  private nodes: AudioNode[] = [];
+  private isPlaying: boolean = false;
+  private currentSkin: Skin | null = null;
+  private volume: number = 0.4;
+
+  constructor(ctx: AudioContext | null) {
+    this.ctx = ctx;
+  }
+
+  private createNoiseBuffer() {
+    if (!this.ctx) return null;
+    const bufferSize = this.ctx.sampleRate * 4; // 4 seconds loop
+    const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+        data[i] = (Math.random() * 2 - 1);
+    }
+    return buffer;
+  }
+
+  public start(skin: Skin) {
+    if (!this.ctx || (this.isPlaying && this.currentSkin === skin)) return;
+    this.stop(); // Stop previous
+    
+    this.currentSkin = skin;
+    this.isPlaying = true;
+    this.masterGain = this.ctx.createGain();
+    this.masterGain.connect(this.ctx.destination);
+    this.masterGain.gain.setValueAtTime(0, this.ctx.currentTime);
+    this.masterGain.gain.linearRampToValueAtTime(this.volume, this.ctx.currentTime + 2); // Fade in
+
+    const t = this.ctx.currentTime;
+
+    // --- Procedural Generators ---
+    
+    // 1. Wind / Noise Generator (Nature Skins)
+    if (['forest', 'ocean', 'glacier', 'sunset', 'aurora', 'ink'].includes(skin)) {
+        const buffer = this.createNoiseBuffer();
+        if (buffer) {
+            const src = this.ctx.createBufferSource();
+            src.buffer = buffer;
+            src.loop = true;
+            
+            const filter = this.ctx.createBiquadFilter();
+            
+            if (skin === 'ocean') {
+               filter.type = 'lowpass';
+               filter.frequency.value = 400; // Deep rumble of ocean
+            } else if (skin === 'glacier') {
+               filter.type = 'highpass';
+               filter.frequency.value = 800; // Icy wind
+            } else {
+               filter.type = 'bandpass';
+               filter.frequency.value = 500;
+            }
+
+            // LFO for Wind Swell
+            const lfo = this.ctx.createOscillator();
+            lfo.frequency.value = 0.1; // Slow swell
+            const lfoGain = this.ctx.createGain();
+            lfoGain.gain.value = 300;
+            lfo.connect(lfoGain);
+            lfoGain.connect(filter.frequency);
+
+            const gain = this.ctx.createGain();
+            gain.gain.value = skin === 'ocean' ? 0.3 : 0.15;
+            
+            src.connect(filter);
+            filter.connect(gain);
+            gain.connect(this.masterGain);
+            
+            src.start(t);
+            lfo.start(t);
+            
+            this.nodes.push(src, filter, lfo, lfoGain, gain);
+        }
+    }
+
+    // 2. Deep Drone (Dragon, Nebula, Cyber)
+    if (['dragon', 'nebula', 'cyber', 'alchemy'].includes(skin)) {
+        const osc = this.ctx.createOscillator();
+        const filter = this.ctx.createBiquadFilter();
+        const gain = this.ctx.createGain();
+        
+        if (skin === 'dragon') {
+            osc.type = 'sawtooth';
+            osc.frequency.value = 50; // Low rumble
+            filter.type = 'lowpass';
+            filter.frequency.value = 120;
+            gain.gain.value = 0.2;
+        } else if (skin === 'cyber') {
+            osc.type = 'square';
+            osc.frequency.value = 110;
+            filter.type = 'lowpass';
+            filter.frequency.value = 300;
+            gain.gain.value = 0.05;
+        } else {
+            osc.type = 'sine';
+            osc.frequency.value = 60;
+            gain.gain.value = 0.3;
+        }
+
+        osc.connect(filter);
+        filter.connect(gain);
+        gain.connect(this.masterGain);
+        osc.start(t);
+        this.nodes.push(osc, filter, gain);
+    }
+
+    // 3. Ethereal Chimes (Celestia, Nebula, Sakura)
+    if (['celestia', 'nebula', 'sakura', 'aurora'].includes(skin)) {
+        // High pitched sine pulses
+        const lfo = this.ctx.createOscillator();
+        lfo.frequency.value = skin === 'celestia' ? 0.2 : 0.1; 
+        
+        const osc = this.ctx.createOscillator();
+        osc.type = skin === 'celestia' ? 'sine' : 'triangle';
+        osc.frequency.value = skin === 'celestia' ? 880 : 554; // A5 vs C#5
+        
+        const gain = this.ctx.createGain();
+        gain.gain.value = 0;
+        
+        // AM Synthesis for shimmering volume
+        const am = this.ctx.createOscillator();
+        am.frequency.value = 2; // Shimmer
+        const amGain = this.ctx.createGain();
+        amGain.gain.value = 0.05;
+        
+        am.connect(amGain);
+        amGain.connect(gain.gain);
+        
+        // Base volume
+        const baseGain = this.ctx.createGain();
+        baseGain.gain.value = 0.05;
+        baseGain.connect(gain.gain); // Add constant level
+
+        osc.connect(gain);
+        gain.connect(this.masterGain);
+        
+        osc.start(t);
+        am.start(t);
+        this.nodes.push(osc, gain, am, amGain, baseGain);
+    }
+  }
+
+  public stop() {
+    if (this.masterGain && this.ctx) {
+        // Fade out
+        try {
+            this.masterGain.gain.setTargetAtTime(0, this.ctx.currentTime, 0.5);
+        } catch(e) {}
+        
+        setTimeout(() => {
+            this.nodes.forEach(n => {
+                try { 
+                    if(n instanceof AudioScheduledSourceNode) n.stop(); 
+                    n.disconnect(); 
+                } catch(e) {}
+            });
+            this.nodes = [];
+            if(this.masterGain) this.masterGain.disconnect();
+            this.masterGain = null;
+        }, 1000);
+    }
+    this.isPlaying = false;
+    this.currentSkin = null;
+  }
+}
 
 class AudioController {
   private ctx: AudioContext | null = null;
   private enabled: boolean = true;
+  private ambient: AmbientController;
 
   constructor() {
     try {
       // @ts-ignore
       const AudioContextClass = window.AudioContext || window.webkitAudioContext;
       this.ctx = new AudioContextClass();
+      this.ambient = new AmbientController(this.ctx);
     } catch (e) {
       console.error("Web Audio API not supported");
+      // Fallback dummy
+      this.ambient = new AmbientController(null);
     }
   }
 
@@ -21,9 +198,35 @@ class AudioController {
     }
   }
 
+  private createNoiseBuffer() {
+    if (!this.ctx) return null;
+    const bufferSize = this.ctx.sampleRate * 4; // 4 seconds loop
+    const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+        data[i] = (Math.random() * 2 - 1);
+    }
+    return buffer;
+  }
+
   public toggle(state: boolean) {
     this.enabled = state;
-    if (state) this.init();
+    if (state) {
+        this.init();
+    } else {
+        this.ambient.stop();
+    }
+  }
+
+  public startAmbient(skin: Skin) {
+      if (this.enabled) {
+          this.init();
+          this.ambient.start(skin);
+      }
+  }
+
+  public stopAmbient() {
+      this.ambient.stop();
   }
 
   // Generate a sound based on material physics simulation
@@ -311,17 +514,6 @@ class AudioController {
         osc.start(t);
         osc.stop(t + 0.5);
     }
-  }
-
-  private createNoiseBuffer() {
-      if (!this.ctx) return null;
-      const bufferSize = this.ctx.sampleRate * 2; // 2 seconds
-      const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
-      const data = buffer.getChannelData(0);
-      for (let i = 0; i < bufferSize; i++) {
-          data[i] = Math.random() * 2 - 1;
-      }
-      return buffer;
   }
 
   public playWin() {
