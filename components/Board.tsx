@@ -149,18 +149,6 @@ const Board = React.memo(forwardRef<BoardRef, BoardProps>(({
     captureScreenshot: async () => {
       if (!boardRef.current) return null;
       try {
-        // Simple HTML2Canvas approach won't capture WebGL/Canvas particles well mixed with DOM
-        // Since we have a hybrid DOM + Canvas board, we can't easily export.
-        // HOWEVER, for a simple screenshot, we can just grab the underlying visual board container?
-        // Actually, html2canvas is heavy. Let's just create a quick composite or just fallback to user screenshot.
-        // A better approach for this app is using `html-to-image` but we don't have it imported.
-        // We will try a different approach: 
-        // 1. Create a canvas
-        // 2. Draw the background
-        // 3. Draw grid
-        // 4. Draw stones
-        // This is pure JS drawing for export.
-        
         const exportCanvas = document.createElement('canvas');
         const size = 1000;
         exportCanvas.width = size;
@@ -331,7 +319,12 @@ const Board = React.memo(forwardRef<BoardRef, BoardProps>(({
         placementParticlesRef.current.push({
           x: x, 
           y: y, 
-          vx: (Math.random() - 0.5) * 8, vy: (Math.random() - 0.5) * 8, life: 1.0, color, size: Math.random() * 3 + 1, type: 'burst'
+          vx: (Math.random() - 0.5) * 3, // SLOWED DOWN: Was 8
+          vy: (Math.random() - 0.5) * 3, // SLOWED DOWN: Was 8
+          life: 1.0, 
+          color, 
+          size: Math.random() * 3 + 1, 
+          type: 'burst'
         });
       }
     }
@@ -369,7 +362,7 @@ const Board = React.memo(forwardRef<BoardRef, BoardProps>(({
           for(let i=0; i<count; i++) {
              let color = '#fff';
              let type = 'smoke';
-             let speed = Math.random() * 6 + 2;
+             let speed = Math.random() * 2 + 1; // SLOWED DOWN: Was 6+2
              let angle = Math.random() * Math.PI * 2;
              
              let vx = Math.cos(angle) * speed;
@@ -384,8 +377,8 @@ const Board = React.memo(forwardRef<BoardRef, BoardProps>(({
              else if (skin === Skin.Cyber) { 
                color = Math.random() > 0.5 ? '#0ff' : '#f0f'; 
                type = 'digit'; 
-               vy = -Math.random() * 10 - 5; // Matrix rain up
-               vx = (Math.random() - 0.5) * 2;
+               vy = -Math.random() * 5 - 2; // Slow matrix up
+               vx = (Math.random() - 0.5) * 1;
              } 
              else if (skin === Skin.Celestia) {
                color = '#fef3c7'; type = 'feather';
@@ -397,11 +390,11 @@ const Board = React.memo(forwardRef<BoardRef, BoardProps>(({
              } 
              else if (skin === Skin.Forest) { 
                color = '#a7f3d0'; type = 'leaf'; 
-               vx *= 0.8; vy = -Math.random() * 5;
+               vx *= 0.8; vy = -Math.random() * 2;
              } 
              else if (skin === Skin.Ocean) { 
                color = '#bae6fd'; type = 'bubble'; 
-               vy = -Math.random() * 5; 
+               vy = -Math.random() * 2; 
              } 
              else if (skin === Skin.Sakura) { 
                color = '#fda4af'; type = 'petal'; 
@@ -447,34 +440,34 @@ const Board = React.memo(forwardRef<BoardRef, BoardProps>(({
         this.type = type;
         
         switch(type) {
-           case 'ember': this.vx = (Math.random() - 0.5) * 2; this.vy = Math.random() * -3 - 1; this.size = Math.random() * 4 + 2; this.color = '#fbbf24'; break;
-           case 'feather': this.vx = (Math.random()-0.5)*2; this.vy = Math.random()*2 - 1; this.size = Math.random()*6+3; this.color = '#fff'; break;
-           case 'leaf': this.vx = (Math.random() - 0.5) * 3; this.vy = Math.random() * 2 + 1; this.size = Math.random() * 6 + 2; this.color = Math.random() > 0.5 ? '#4ade80' : '#166534'; break;
-           case 'bubble': this.vx = (Math.random() - 0.5) * 1; this.vy = Math.random() * -2 - 1; this.size = Math.random() * 5 + 2; this.color = 'rgba(125, 211, 252, 0.6)'; break;
-           case 'petal': this.vx = (Math.random() - 0.5) * 3; this.vy = Math.random() * 1 + 0.5; this.size = Math.random() * 5 + 3; this.color = '#fda4af'; break;
-           case 'star': const angle = Math.random() * Math.PI * 2; const speed = Math.random() * 3 + 1; this.vx = Math.cos(angle) * speed; this.vy = Math.sin(angle) * speed; this.size = Math.random() * 3 + 1; this.color = '#fff'; break;
-           case 'sand': this.vx = Math.random() * 4 + 2; this.vy = (Math.random() - 0.5) * 1; this.size = Math.random() * 3 + 1; this.color = '#fcd34d'; break;
-           case 'shard': this.vx = (Math.random() - 0.5) * 2; this.vy = Math.random() * 3 + 2; this.size = Math.random() * 4 + 2; this.color = '#fff'; break;
-           case 'digit': this.vx = 0; this.vy = Math.random() * 2 + 2; this.size = 12; this.color = '#0ff'; break;
-           case 'ink': this.vx = (Math.random() - 0.5) * 1; this.vy = (Math.random() - 0.5) * 1; this.size = Math.random() * 10 + 5; this.color = '#000'; break;
-           case 'cog': this.vx = (Math.random() - 0.5) * 2; this.vy = (Math.random() - 0.5) * 2; this.size = Math.random() * 5 + 3; this.color = '#b45309'; break;
-           case 'glow': this.vx = 0; this.vy = -Math.random()*2; this.size = Math.random()*5+2; this.color = '#67e8f9'; break;
-           case 'gold': this.vx = (Math.random() - 0.5) * 2; this.vy = Math.random() * 2; this.size = Math.random() * 3 + 1; this.color = '#fbbf24'; break;
-           default: this.vx = (Math.random() - 0.5) * 5; this.vy = (Math.random() - 0.5) * 5; this.size = Math.random() * 5 + 3; this.color = `hsl(${Math.random()*360}, 100%, 50%)`;
+           case 'ember': this.vx = (Math.random() - 0.5) * 1; this.vy = Math.random() * -1.5 - 0.5; this.size = Math.random() * 4 + 2; this.color = '#fbbf24'; break;
+           case 'feather': this.vx = (Math.random()-0.5)*1; this.vy = Math.random()*1 - 0.5; this.size = Math.random()*6+3; this.color = '#fff'; break;
+           case 'leaf': this.vx = (Math.random() - 0.5) * 1.5; this.vy = Math.random() * 1 + 0.5; this.size = Math.random() * 6 + 2; this.color = Math.random() > 0.5 ? '#4ade80' : '#166534'; break;
+           case 'bubble': this.vx = (Math.random() - 0.5) * 0.5; this.vy = Math.random() * -1 - 0.5; this.size = Math.random() * 5 + 2; this.color = 'rgba(125, 211, 252, 0.6)'; break;
+           case 'petal': this.vx = (Math.random() - 0.5) * 1.5; this.vy = Math.random() * 0.5 + 0.2; this.size = Math.random() * 5 + 3; this.color = '#fda4af'; break;
+           case 'star': const angle = Math.random() * Math.PI * 2; const speed = Math.random() * 1.5 + 0.5; this.vx = Math.cos(angle) * speed; this.vy = Math.sin(angle) * speed; this.size = Math.random() * 3 + 1; this.color = '#fff'; break;
+           case 'sand': this.vx = Math.random() * 2 + 1; this.vy = (Math.random() - 0.5) * 0.5; this.size = Math.random() * 3 + 1; this.color = '#fcd34d'; break;
+           case 'shard': this.vx = (Math.random() - 0.5) * 1; this.vy = Math.random() * 1.5 + 1; this.size = Math.random() * 4 + 2; this.color = '#fff'; break;
+           case 'digit': this.vx = 0; this.vy = Math.random() * 1 + 1; this.size = 12; this.color = '#0ff'; break;
+           case 'ink': this.vx = (Math.random() - 0.5) * 0.5; this.vy = (Math.random() - 0.5) * 0.5; this.size = Math.random() * 10 + 5; this.color = '#000'; break;
+           case 'cog': this.vx = (Math.random() - 0.5) * 1; this.vy = (Math.random() - 0.5) * 1; this.size = Math.random() * 5 + 3; this.color = '#b45309'; break;
+           case 'glow': this.vx = 0; this.vy = -Math.random()*1; this.size = Math.random()*5+2; this.color = '#67e8f9'; break;
+           case 'gold': this.vx = (Math.random() - 0.5) * 1; this.vy = Math.random() * 1; this.size = Math.random() * 3 + 1; this.color = '#fbbf24'; break;
+           default: this.vx = (Math.random() - 0.5) * 2; this.vy = (Math.random() - 0.5) * 2; this.size = Math.random() * 5 + 3; this.color = `hsl(${Math.random()*360}, 100%, 50%)`;
         }
       }
 
       update() {
-         this.x += this.vx; this.y += this.vy; this.life -= 0.02;
-         if (this.type === 'digit') { if (Math.random() > 0.9) this.color = '#fff'; else this.color = '#0ff'; }
-         if (this.type !== 'ink') this.size *= 0.96;
+         this.x += this.vx; this.y += this.vy; this.life -= 0.015; // SLOWED DECAY: Was 0.02
+         if (this.type === 'digit') { if (Math.random() > 0.95) this.color = '#fff'; else this.color = '#0ff'; }
+         if (this.type !== 'ink') this.size *= 0.98; // Gentler shrink
       }
 
       draw(ctx: CanvasRenderingContext2D) {
          ctx.save(); ctx.globalAlpha = Math.max(0, this.life); ctx.fillStyle = this.color;
          if (this.type === 'digit') { ctx.font = '10px monospace'; ctx.fillText(Math.random() > 0.5 ? '1' : '0', this.x, this.y); }
          else if (this.type === 'shard') { ctx.beginPath(); ctx.moveTo(this.x, this.y); ctx.lineTo(this.x + this.size, this.y + this.size); ctx.lineTo(this.x - this.size, this.y + this.size); ctx.fill(); }
-         else if (this.type === 'leaf') { ctx.beginPath(); ctx.ellipse(this.x, this.y, this.size, this.size/2, frame*0.1, 0, Math.PI*2); ctx.fill(); }
+         else if (this.type === 'leaf') { ctx.beginPath(); ctx.ellipse(this.x, this.y, this.size, this.size/2, frame*0.05, 0, Math.PI*2); ctx.fill(); }
          else if (this.type === 'feather') { 
             ctx.beginPath(); ctx.ellipse(this.x, this.y, this.size, this.size/3, this.life*5, 0, Math.PI*2); ctx.fill(); 
          }
@@ -512,9 +505,8 @@ const Board = React.memo(forwardRef<BoardRef, BoardProps>(({
             const p = placementParticlesRef.current[i];
             
             if (p.type === 'shockwave') {
-               // Dazzling Shockwave Logic
-               p.size += 5; // Fast expansion
-               p.life -= 0.03;
+               p.size += 2; // Slow expansion (was 5)
+               p.life -= 0.02; // Slow fade (was 0.03)
                ctx.save();
                ctx.strokeStyle = p.color;
                ctx.lineWidth = p.lineWidth || 3;
@@ -526,7 +518,7 @@ const Board = React.memo(forwardRef<BoardRef, BoardProps>(({
                ctx.stroke();
                ctx.restore();
             } else {
-               p.x += p.vx; p.y += p.vy; p.life -= 0.04;
+               p.x += p.vx; p.y += p.vy; p.life -= 0.02; // Slower fade (was 0.04)
                
                ctx.save();
                ctx.globalAlpha = Math.max(0, p.life); 
@@ -538,7 +530,7 @@ const Board = React.memo(forwardRef<BoardRef, BoardProps>(({
                else if (p.type === 'leaf') { ctx.beginPath(); ctx.ellipse(p.x, p.y, p.size, p.size/2, frame*0.1, 0, Math.PI*2); ctx.fill(); }
                else if (p.type === 'cog') { ctx.font = '12px serif'; ctx.fillText('⚙', p.x, p.y); }
                else if (p.type === 'petal') {
-                   ctx.translate(p.x, p.y); ctx.rotate(frame * 0.1);
+                   ctx.translate(p.x, p.y); ctx.rotate(frame * 0.05);
                    ctx.beginPath(); ctx.moveTo(0,0); ctx.quadraticCurveTo(p.size/2, -p.size, p.size, 0); ctx.quadraticCurveTo(p.size/2, p.size, 0,0); ctx.fill();
                }
                else if (p.type === 'bubble') {
@@ -549,7 +541,7 @@ const Board = React.memo(forwardRef<BoardRef, BoardProps>(({
                    ctx.beginPath(); ctx.arc(p.x, p.y, p.size * (2 - p.life), 0, Math.PI*2); ctx.fill();
                }
                else if (p.type === 'smoke' || p.type === 'ember') {
-                   p.vy -= 0.05; p.size *= 1.02; 
+                   p.vy -= 0.02; p.size *= 1.01; 
                    ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill();
                }
                else if (p.type === 'glow') {
@@ -565,7 +557,7 @@ const Board = React.memo(forwardRef<BoardRef, BoardProps>(({
             if (p.life <= 0) placementParticlesRef.current.splice(i, 1);
         }
         
-        if (winningLine && points.length > 0 && frame % 2 === 0) {
+        if (winningLine && points.length > 0 && frame % 4 === 0) { // Spawn less frequently (was % 2)
            const randPoint = points[Math.floor(Math.random() * points.length)];
            let type = 'confetti';
            if (skin === Skin.Dragon) type = 'ember'; else if (skin === Skin.Forest) type = 'leaf'; else if (skin === Skin.Ocean) type = 'bubble';
@@ -585,7 +577,7 @@ const Board = React.memo(forwardRef<BoardRef, BoardProps>(({
              if (skin === Skin.Alchemy) {
                 ctx.shadowColor = '#d97706'; ctx.strokeStyle = '#f59e0b'; ctx.setLineDash([10, 5]);
              } else if (skin === Skin.Dragon) {
-                ctx.shadowColor = '#f97316'; ctx.shadowBlur = 30 + Math.sin(frame * 0.2) * 10;
+                ctx.shadowColor = '#f97316'; ctx.shadowBlur = 30 + Math.sin(frame * 0.1) * 10;
              } else if (skin === Skin.Cyber) {
                 ctx.shadowColor = '#0ff'; ctx.strokeStyle = '#0ff'; ctx.setLineDash([Math.random()*20, 5]);
              } else if (skin === Skin.Celestia) {
@@ -593,7 +585,7 @@ const Board = React.memo(forwardRef<BoardRef, BoardProps>(({
              } else if (skin === Skin.Forest) {
                 ctx.strokeStyle = '#4ade80'; ctx.shadowColor = '#166534';
              } else if (skin === Skin.Ink) {
-                ctx.strokeStyle = '#000'; ctx.shadowBlur = 0; ctx.lineWidth = 6 + Math.sin(frame*0.2)*2;
+                ctx.strokeStyle = '#000'; ctx.shadowBlur = 0; ctx.lineWidth = 6 + Math.sin(frame*0.1)*2;
              } else if (skin === Skin.Aurora) {
                 ctx.shadowColor = '#22d3ee'; ctx.strokeStyle = '#67e8f9'; ctx.shadowBlur = 30;
              } else if (skin === Skin.Classic) {
@@ -602,7 +594,7 @@ const Board = React.memo(forwardRef<BoardRef, BoardProps>(({
                 ctx.beginPath(); points.forEach((p, i) => { if(i===0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); }); ctx.stroke();
                 ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 3; ctx.lineCap = 'round';
                 ctx.beginPath(); points.forEach((p, i) => { if(i===0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); }); ctx.stroke();
-                ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.globalAlpha = 0.6 + Math.sin(frame * 0.1) * 0.4;
+                ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.globalAlpha = 0.6 + Math.sin(frame * 0.05) * 0.4;
              }
 
              ctx.beginPath(); 

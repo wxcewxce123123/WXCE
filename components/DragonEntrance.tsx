@@ -21,7 +21,7 @@ const DragonEntrance: React.FC<DragonEntranceProps> = ({ onComplete }) => {
     
     // Physics constants
     const DRAGON_SEGMENTS = 60;
-    const DRAGON_SPEED = 0.03;
+    const DRAGON_SPEED = 0.015; // Slowed down from 0.03
     
     // State
     let phase: 'EYES' | 'ROAR' | 'FLY' | 'CLIMAX' | 'END' = 'EYES';
@@ -47,24 +47,24 @@ const DragonEntrance: React.FC<DragonEntranceProps> = ({ onComplete }) => {
         
         if (type === 'spark') {
           const angle = Math.random() * Math.PI * 2;
-          const speed = Math.random() * 5 + 2;
+          const speed = Math.random() * 3 + 1; // Slower particles
           this.vx = Math.cos(angle) * speed;
           this.vy = Math.sin(angle) * speed;
           this.size = Math.random() * 3 + 1;
           this.color = `hsl(${Math.random() * 40 + 20}, 100%, 70%)`; // Gold/Orange
-          this.decay = 0.02;
+          this.decay = 0.01;
         } else if (type === 'smoke') {
-          this.vx = (Math.random() - 0.5) * 2;
-          this.vy = (Math.random() - 0.5) * 2 - 2; // Rise up
+          this.vx = (Math.random() - 0.5) * 1;
+          this.vy = (Math.random() - 0.5) * 1 - 1; // Slower rise up
           this.size = Math.random() * 20 + 10;
           this.color = `rgba(50, 20, 0, 0.5)`;
-          this.decay = 0.01;
+          this.decay = 0.005;
         } else {
           this.vx = 0;
           this.vy = 0;
           this.size = Math.random() * 2;
           this.color = '#fff';
-          this.decay = 0.05;
+          this.decay = 0.02;
         }
       }
 
@@ -74,7 +74,7 @@ const DragonEntrance: React.FC<DragonEntranceProps> = ({ onComplete }) => {
         this.vx *= 0.95; // Friction
         this.vy *= 0.95;
         this.life -= this.decay;
-        this.size *= 0.98;
+        this.size *= 0.99;
       }
 
       draw(ctx: CanvasRenderingContext2D) {
@@ -223,33 +223,33 @@ const DragonEntrance: React.FC<DragonEntranceProps> = ({ onComplete }) => {
       }
 
       // 3. Logic Sequence
-      // EYES (0-60 frames): Dark screen, just eyes or hint
-      if (frame < 80) {
+      // EYES (0-80 frames): Dark screen, just eyes or hint
+      if (frame < 100) { // Extended duration
         phase = 'EYES';
         // Pulse background
-        const pulse = Math.sin(frame * 0.1) * 0.1;
+        const pulse = Math.sin(frame * 0.05) * 0.1;
         ctx.fillStyle = `rgba(50, 0, 0, ${pulse})`;
         ctx.fillRect(0,0,width,height);
       } 
-      // ROAR (80-150): Screen shakes, particles gather
-      else if (frame < 150) {
+      // ROAR (100-200): Screen shakes, particles gather
+      else if (frame < 200) {
         phase = 'ROAR';
-        shake = (frame - 80) * 0.2;
+        shake = (frame - 100) * 0.1; // Gentle shake
         // Spawn particles center
         if (Math.random() > 0.5) {
             particles.push(new Particle(width/2 + (Math.random()-0.5)*100, height/2 + (Math.random()-0.5)*100, 'spark'));
         }
       }
-      // FLY (150-500): Dragon appears and flies
-      else if (frame < 550) {
+      // FLY (200-600): Dragon appears and flies
+      else if (frame < 600) {
         phase = 'FLY';
-        dragon.update(1.5); // Fast movement
+        dragon.update(1.2); // Slower flight
         dragon.draw(ctx);
         
         // Random Lightning
-        if (Math.random() < 0.05) {
+        if (Math.random() < 0.02) { // Less frequent
           flash = 0.6;
-          shake = 20;
+          shake = 10;
           ctx.shadowBlur = 20;
           ctx.shadowColor = '#fff';
           castLightning(Math.random()*width, 0, Math.random()*width, height, 150);
@@ -263,19 +263,19 @@ const DragonEntrance: React.FC<DragonEntranceProps> = ({ onComplete }) => {
              if (Math.random() > 0.5) particles.push(new Particle(h.x, h.y, 'spark'));
         }
       }
-      // CLIMAX (550-650): Massive explosion of light
-      else if (frame < 650) {
+      // CLIMAX (600-750): Massive explosion of light
+      else if (frame < 750) {
         phase = 'CLIMAX';
-        dragon.update(0.5); // Slow mo
+        dragon.update(0.4); // Slow mo
         dragon.draw(ctx);
-        shake = 10;
-        if (frame === 551) flash = 1.0;
+        shake = 5;
+        if (frame === 601) flash = 1.0;
         
         // Final central column of light
         ctx.globalCompositeOperation = 'lighter';
         const grad = ctx.createLinearGradient(0,0,width,height);
         grad.addColorStop(0, 'rgba(255, 200, 0, 0)');
-        grad.addColorStop(0.5, `rgba(255, 220, 100, ${(650-frame)/100})`);
+        grad.addColorStop(0.5, `rgba(255, 220, 100, ${(750-frame)/150})`);
         grad.addColorStop(1, 'rgba(255, 200, 0, 0)');
         ctx.fillStyle = grad;
         ctx.fillRect(0,0,width,height);

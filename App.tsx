@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Player, Theme, Skin, GameState, GameMode, Difficulty, AnalysisResult, MatchRecord, GameSettings, PuzzleState } from './types';
 import { createEmptyBoard, checkWin, getAIMove, analyzeMatch, detectOpening, generatePuzzle, reconstructBoard } from './utils/gameLogic';
@@ -45,6 +44,26 @@ const ZEN_QUOTES = [
   "Empty your mind, be formless, shapeless — like water.",
   "棋道如人生，一步一修行。"
 ];
+
+// --- Theme Configuration ---
+// 'dynamic': Allows user toggle
+// 'day': Locked to Day mode
+// 'night': Locked to Night mode
+const SKIN_THEME_CONFIG: Record<Skin, 'dynamic' | 'day' | 'night'> = {
+  [Skin.Classic]: 'dynamic',
+  [Skin.Ink]: 'dynamic',
+  [Skin.Glacier]: 'dynamic',
+  [Skin.Sakura]: 'day',      // Locked to Day for best visuals
+  [Skin.Celestia]: 'day',    // Locked to Day
+  [Skin.Forest]: 'night',    // Locked to Night for atmosphere
+  [Skin.Ocean]: 'night',     // Locked to Night
+  [Skin.Sunset]: 'night',    // Locked to Night (Dark orange vibe)
+  [Skin.Dragon]: 'night',
+  [Skin.Cyber]: 'night',
+  [Skin.Nebula]: 'night',
+  [Skin.Alchemy]: 'night',
+  [Skin.Aurora]: 'night',
+};
 
 function App() {
   const [theme, setTheme] = useState<Theme>(Theme.Day);
@@ -540,9 +559,12 @@ function App() {
   }, [game.history, game.winner, isReplaying, gameMode, game.currentPlayer, game.moveHistory, viewingIndex, currentPuzzle]);
 
   const toggleTheme = useCallback(() => {
-    audioController.playUI('click');
-    setTheme(prev => prev === Theme.Day ? Theme.Night : Theme.Day);
-  }, []);
+    // Only allow toggling if skin is dynamic
+    if (SKIN_THEME_CONFIG[skin] === 'dynamic') {
+      audioController.playUI('click');
+      setTheme(prev => prev === Theme.Day ? Theme.Night : Theme.Day);
+    }
+  }, [skin]);
 
   const startGame = useCallback(() => {
     audioController.toggle(true);
@@ -580,12 +602,10 @@ function App() {
     setPendingSkin(currentPending => {
       if (currentPending) {
         setSkin(currentPending);
-        const s = currentPending;
-        if (s === Skin.Dragon || s === Skin.Nebula || s === Skin.Ocean || s === Skin.Cyber || s === Skin.Alchemy || s === Skin.Aurora) {
-          setTheme(Theme.Night);
-        } else if (s === Skin.Sakura || s === Skin.Glacier || s === Skin.Ink || s === Skin.Forest || s === Skin.Sunset || s === Skin.Celestia) {
-          setTheme(Theme.Day);
-        }
+        const config = SKIN_THEME_CONFIG[currentPending];
+        if (config === 'day') setTheme(Theme.Day);
+        else if (config === 'night') setTheme(Theme.Night);
+        // If dynamic, keep current theme
       }
       return currentPending;
     });
@@ -661,21 +681,44 @@ function App() {
 
   const getStartTitleColor = () => {
      switch(skin) {
-         case Skin.Dragon: return "text-transparent bg-clip-text bg-gradient-to-br from-amber-300 via-orange-500 to-red-600 drop-shadow-[0_0_10px_rgba(245,158,11,0.5)]";
-         case Skin.Cyber: return "text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-500 drop-shadow-[0_0_10px_rgba(6,182,212,0.5)]";
-         case Skin.Celestia: return "text-transparent bg-clip-text bg-gradient-to-b from-yellow-200 via-amber-300 to-yellow-600 drop-shadow-[0_0_10px_rgba(251,191,36,0.5)]";
-         case Skin.Ink: return theme === Theme.Day ? "text-slate-900" : "text-white";
-         case Skin.Forest: return "text-transparent bg-clip-text bg-gradient-to-br from-emerald-300 to-green-600";
-         case Skin.Ocean: return "text-transparent bg-clip-text bg-gradient-to-br from-sky-300 to-blue-600";
-         case Skin.Sakura: return "text-transparent bg-clip-text bg-gradient-to-br from-pink-300 to-rose-500";
-         case Skin.Sunset: return "text-transparent bg-clip-text bg-gradient-to-br from-orange-300 to-red-600";
-         case Skin.Glacier: return "text-transparent bg-clip-text bg-gradient-to-br from-blue-100 to-blue-400";
-         case Skin.Nebula: return "text-transparent bg-clip-text bg-gradient-to-br from-purple-300 to-indigo-600";
-         case Skin.Alchemy: return "text-transparent bg-clip-text bg-gradient-to-br from-amber-200 to-yellow-700";
-         case Skin.Aurora: return "text-transparent bg-clip-text bg-gradient-to-br from-teal-200 to-cyan-500";
+         case Skin.Dragon: return "text-transparent bg-clip-text bg-gradient-to-br from-amber-300 via-orange-500 to-red-600 drop-shadow-[0_0_15px_rgba(245,158,11,0.6)]";
+         case Skin.Cyber: return "text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-500 drop-shadow-[0_0_15px_rgba(6,182,212,0.6)]";
+         case Skin.Celestia: return "text-transparent bg-clip-text bg-gradient-to-b from-yellow-200 via-amber-300 to-yellow-600 drop-shadow-[0_0_15px_rgba(251,191,36,0.6)]";
+         case Skin.Ink: return theme === Theme.Day ? "text-slate-900 drop-shadow-md" : "text-white drop-shadow-md";
+         case Skin.Forest: return "text-transparent bg-clip-text bg-gradient-to-br from-emerald-300 to-green-600 drop-shadow-[0_0_10px_rgba(16,185,129,0.4)]";
+         case Skin.Ocean: return "text-transparent bg-clip-text bg-gradient-to-br from-sky-300 to-blue-600 drop-shadow-[0_0_10px_rgba(14,165,233,0.4)]";
+         case Skin.Sakura: return "text-transparent bg-clip-text bg-gradient-to-br from-pink-300 to-rose-500 drop-shadow-[0_0_10px_rgba(236,72,153,0.4)]";
+         case Skin.Sunset: return "text-transparent bg-clip-text bg-gradient-to-br from-orange-300 to-red-600 drop-shadow-[0_0_10px_rgba(249,115,22,0.4)]";
+         case Skin.Glacier: return "text-transparent bg-clip-text bg-gradient-to-br from-blue-100 to-blue-400 drop-shadow-[0_0_10px_rgba(59,130,246,0.4)]";
+         case Skin.Nebula: return "text-transparent bg-clip-text bg-gradient-to-br from-purple-300 to-indigo-600 drop-shadow-[0_0_10px_rgba(147,51,234,0.4)]";
+         case Skin.Alchemy: return "text-transparent bg-clip-text bg-gradient-to-br from-amber-200 to-yellow-700 drop-shadow-[0_0_10px_rgba(217,119,6,0.4)]";
+         case Skin.Aurora: return "text-transparent bg-clip-text bg-gradient-to-br from-teal-200 to-cyan-500 drop-shadow-[0_0_10px_rgba(20,184,166,0.4)]";
          default: return theme === Theme.Day ? "text-slate-900" : "text-white";
      }
   };
+
+  const getContainerStyles = () => {
+    const isDark = theme === Theme.Night;
+    switch(skin) {
+        // High opacity dark backgrounds for better contrast in Night mode
+        case Skin.Forest: return isDark ? "bg-[#052e16]/90 border-emerald-500/30 text-emerald-100 shadow-[0_0_30px_rgba(16,185,129,0.1)]" : "bg-[#ecfdf5]/60 border-emerald-200/50";
+        case Skin.Ocean: return isDark ? "bg-[#0f172a]/90 border-sky-500/30 text-sky-100 shadow-[0_0_30px_rgba(14,165,233,0.1)]" : "bg-[#f0f9ff]/60 border-sky-200/50";
+        case Skin.Sunset: return isDark ? "bg-[#431407]/90 border-orange-700/30 text-orange-100" : "bg-[#fff7ed]/60 border-orange-200/50";
+        // Sakura: Day mode desaturated
+        case Skin.Sakura: return "bg-white/90 border-pink-200/50 text-slate-700 shadow-xl shadow-pink-100/50"; 
+        case Skin.Glacier: return isDark ? "bg-[#172554]/90 border-blue-500/30 text-blue-100" : "bg-[#eff6ff]/60 border-blue-200/50";
+        case Skin.Ink: return isDark ? "bg-[#0c0a09]/90 border-stone-600/50 text-stone-200" : "bg-[#fafaf9]/80 border-stone-300/50 text-stone-900";
+        case Skin.Dragon: return "bg-black/90 border-amber-600/40 text-amber-50";
+        case Skin.Cyber: return "bg-[#020617]/90 border-cyan-500/30 text-cyan-50";
+        case Skin.Nebula: return "bg-[#1e1b4b]/90 border-purple-500/30 text-purple-100";
+        case Skin.Alchemy: return "bg-[#271c19]/90 border-amber-700/40 text-amber-100";
+        case Skin.Aurora: return "bg-[#042f2e]/90 border-teal-500/30 text-teal-50";
+        case Skin.Celestia: return "bg-white/90 border-amber-200/50 text-slate-800";
+        default: return isDark ? "bg-stone-900/80 border-stone-600/30 text-stone-200" : "bg-white/40 border-white/40 shadow-[0_8px_32px_rgba(0,0,0,0.05)]";
+    }
+  };
+
+  const containerStyle = getContainerStyles();
 
   return (
     <div className={`relative min-h-[100dvh] w-full flex flex-col items-center justify-start md:justify-center overflow-x-hidden pt-6 pb-6 md:py-0`}>
@@ -737,28 +780,32 @@ function App() {
 
         <div className="relative z-10 flex flex-col items-center">
             
-            <div className={`transition-all duration-700 hover:scale-105 opacity-80 ${theme===Theme.Day ? 'text-slate-800' : 'text-white'}`}>
-                {renderStartVisual()}
+            <div className="relative flex items-center justify-center">
+                <div className={`transition-all duration-700 hover:scale-105 opacity-80 ${theme===Theme.Day ? 'text-slate-800' : 'text-white'}`}>
+                    {renderStartVisual()}
+                </div>
+
+                <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center space-y-4 pointer-events-none w-[150%]">
+                   <h1 className={`text-7xl md:text-9xl font-serif font-black tracking-[0.2em] ${getStartTitleColor()} drop-shadow-2xl`} style={{ paddingLeft: '0.2em', textShadow: '0 4px 30px rgba(0,0,0,0.1)' }}>
+                      无双
+                   </h1>
+                   <div className={`text-sm md:text-xl font-medium tracking-[0.8em] uppercase opacity-80 ${theme===Theme.Day ? 'text-slate-800' : 'text-white'} flex items-center justify-center gap-4`} style={{ paddingLeft: '0.8em' }}>
+                      <span className="w-8 h-[1px] bg-current opacity-50"></span>
+                      Zen Gomoku
+                      <span className="w-8 h-[1px] bg-current opacity-50"></span>
+                   </div>
+                </div>
             </div>
 
-            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center space-y-4">
-               <h1 className={`text-6xl md:text-8xl font-serif font-bold tracking-widest ${getStartTitleColor()}`}>
-                  无双
-               </h1>
-               <div className={`text-sm md:text-xl font-light tracking-[0.5em] uppercase opacity-70 ${theme===Theme.Day ? 'text-slate-800' : 'text-white'}`}>
-                  Zen Gomoku
-               </div>
-            </div>
-
-            <div className="mt-32 md:mt-40 group relative">
-               <button onClick={startGame} className={`relative px-12 py-3 overflow-hidden transition-all duration-500 group-hover:tracking-[0.5em] tracking-[0.3em] font-medium text-sm md:text-base border-t border-b ${theme === Theme.Day ? 'border-black/20 text-black' : 'border-white/20 text-white'}`}>
+            <div className="mt-36 md:mt-48 group relative">
+               <button onClick={startGame} className={`relative px-16 py-4 overflow-hidden transition-all duration-500 group-hover:tracking-[0.5em] tracking-[0.3em] font-medium text-lg border-y ${theme === Theme.Day ? 'border-black/20 text-black' : 'border-white/20 text-white'}`}>
                   <span className="relative z-10">入局</span>
-                  <div className={`absolute inset-0 w-0 bg-current opacity-10 transition-all duration-500 group-hover:w-full`} />
+                  <div className={`absolute inset-0 w-0 bg-current opacity-5 transition-all duration-500 group-hover:w-full`} />
                </button>
             </div>
         </div>
         
-        <div className={`absolute bottom-8 md:bottom-12 max-w-md text-center px-6 opacity-50 transition-opacity duration-1000 ${hasStarted ? 'opacity-0' : ''} ${theme===Theme.Day ? 'text-slate-600' : 'text-slate-300'}`}>
+        <div className={`absolute bottom-8 md:bottom-12 max-w-md text-center px-6 opacity-60 transition-opacity duration-1000 ${hasStarted ? 'opacity-0' : ''} ${theme===Theme.Day ? 'text-slate-600' : 'text-slate-300'}`}>
            <p className="text-xs md:text-sm font-serif italic tracking-wide">"{quote}"</p>
         </div>
       </div>
@@ -776,7 +823,7 @@ function App() {
                 <p className="text-xs md:text-sm font-medium opacity-70 bg-black/20 px-3 py-1 rounded-full text-white animate-[popIn_0.5s_ease-out]">{currentPuzzle.description}</p>
             )}
 
-            <div className={`text-sm md:text-lg font-medium tracking-widest h-8 transition-all duration-500 flex items-center justify-center gap-6 ${isDragon ? "text-amber-500" : (theme === Theme.Day ? "text-slate-700" : "text-slate-300")}`}>
+            <div className={`text-sm md:text-lg font-medium tracking-widest h-8 transition-all duration-500 flex items-center justify-center gap-6 ${isDragon ? "text-amber-500" : (theme === Theme.Day ? "text-slate-700" : "text-slate-100")}`}>
               
               <div className={`flex items-center gap-2 ${game.currentPlayer === Player.Black ? 'scale-110 font-bold opacity-100' : 'opacity-60 scale-90'} transition-all`}>
                 <span className={`inline-block w-3 h-3 md:w-4 md:h-4 rounded-full bg-black shadow-sm ${isDragon ? 'border border-amber-500' : ''}`}></span>
@@ -808,13 +855,7 @@ function App() {
             </div>
           </div>
 
-          <div className={`w-[95vw] md:w-full flex justify-center relative p-1 sm:p-4 md:p-6 rounded-3xl backdrop-blur-sm transition-all duration-700 perspective-[2000px] ${
-            skin === Skin.Dragon 
-              ? 'bg-black/60 shadow-2xl shadow-amber-900/30 border border-amber-600/30' 
-              : (theme === Theme.Day 
-                  ? 'bg-white/30 border border-white/50 shadow-[0_8px_32px_rgba(0,0,0,0.05)]' 
-                  : 'bg-slate-900/40 border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.4)]')
-          }`}>
+          <div className={`w-[95vw] md:w-full flex justify-center relative p-1 sm:p-4 md:p-6 rounded-3xl backdrop-blur-xl transition-all duration-700 perspective-[2000px] border shadow-2xl ${containerStyle}`}>
             <Board 
               ref={boardRef}
               board={displayBoard}
@@ -877,6 +918,7 @@ function App() {
              toggleZenMode={() => setSettings(p => ({...p, zenMode: !p.zenMode}))}
              timeLimit={settings.timeLimit}
              setTimeLimit={setTimeLimit}
+             themeLocked={SKIN_THEME_CONFIG[skin] !== 'dynamic'}
            />
         </div>
       </div>

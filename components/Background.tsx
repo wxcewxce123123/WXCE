@@ -51,7 +51,7 @@ const Background: React.FC<BackgroundProps> = ({ theme, skin }) => {
       });
     }
 
-    // --- Particle Classes ---
+    // --- Particle Classes (OPTIMIZED NATURAL MOTION) ---
 
     class Sakura {
       x: number; y: number; size: number; speedX: number; speedY: number; rotation: number; rotationSpeed: number; opacity: number; color: string;
@@ -59,15 +59,17 @@ const Background: React.FC<BackgroundProps> = ({ theme, skin }) => {
         this.x = Math.random() * canvas!.width;
         this.y = Math.random() * -canvas!.height;
         this.size = Math.random() * 8 + 5;
-        this.speedX = Math.random() * 2 - 1; 
-        this.speedY = Math.random() * 1.5 + 1; 
+        this.speedX = (Math.random() * 0.5 - 0.25); // Much slower horizontal drift
+        this.speedY = Math.random() * 0.5 + 0.2; // Very slow fall
         this.rotation = Math.random() * 360;
-        this.rotationSpeed = Math.random() * 2 - 1;
+        this.rotationSpeed = (Math.random() * 0.5 - 0.25); // Slow rotation
         this.opacity = Math.random() * 0.5 + 0.3;
         this.color = isSpecial ? '#fda4af' : '#ffb7b2';
       }
       update() {
-        this.x += this.speedX; this.y += this.speedY; this.rotation += this.rotationSpeed;
+        this.x += this.speedX + Math.sin(this.y * 0.01) * 0.2; // Add sway
+        this.y += this.speedY; 
+        this.rotation += this.rotationSpeed;
         if (this.y > canvas!.height) { this.y = -20; this.x = Math.random() * canvas!.width; }
       }
       draw() {
@@ -81,15 +83,17 @@ const Background: React.FC<BackgroundProps> = ({ theme, skin }) => {
       x: number; y: number; size: number; vx: number; vy: number; alpha: number; fading: boolean;
       constructor() {
         this.x = Math.random() * canvas!.width; this.y = Math.random() * canvas!.height; this.size = Math.random() * 2 + 1;
-        this.vx = (Math.random() - 0.5) * 0.5; this.vy = (Math.random() - 0.5) * 0.5; this.alpha = Math.random(); this.fading = Math.random() > 0.5;
+        this.vx = (Math.random() - 0.5) * 0.2; // Tiny movement
+        this.vy = (Math.random() - 0.5) * 0.2; 
+        this.alpha = Math.random(); this.fading = Math.random() > 0.5;
       }
       update() {
         this.x += this.vx; this.y += this.vy;
         if (this.x < 0 || this.x > canvas!.width) this.vx *= -1; if (this.y < 0 || this.y > canvas!.height) this.vy *= -1;
-        if (this.fading) { this.alpha -= 0.005; if (this.alpha <= 0.1) this.fading = false; } else { this.alpha += 0.005; if (this.alpha >= 0.8) this.fading = true; }
+        if (this.fading) { this.alpha -= 0.003; if (this.alpha <= 0.1) this.fading = false; } else { this.alpha += 0.003; if (this.alpha >= 0.8) this.fading = true; }
       }
       draw() {
-        if (!ctx) return; ctx.save(); ctx.globalAlpha = this.alpha; ctx.fillStyle = '#4ade80'; ctx.shadowBlur = 10; ctx.shadowColor = '#4ade80';
+        if (!ctx) return; ctx.save(); ctx.globalAlpha = this.alpha; ctx.fillStyle = '#4ade80'; ctx.shadowBlur = 8; ctx.shadowColor = '#4ade80';
         ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2); ctx.fill(); ctx.restore();
       }
     }
@@ -98,29 +102,40 @@ const Background: React.FC<BackgroundProps> = ({ theme, skin }) => {
       x: number; y: number; size: number; speedY: number; wobble: number; wobbleSpeed: number; opacity: number; color: string;
       constructor() {
         this.x = Math.random() * canvas!.width; this.y = canvas!.height + Math.random() * 100; this.size = Math.random() * 3 + 1;
-        this.speedY = Math.random() * 2 + 0.5; this.wobble = Math.random() * Math.PI * 2; this.wobbleSpeed = Math.random() * 0.05 + 0.01;
+        this.speedY = Math.random() * 0.8 + 0.2; // Slow rise
+        this.wobble = Math.random() * Math.PI * 2; this.wobbleSpeed = Math.random() * 0.02 + 0.005;
         this.opacity = Math.random() * 0.8 + 0.2; const colors = ['#f59e0b', '#ef4444', '#b45309', '#78350f'];
         this.color = colors[Math.floor(Math.random() * colors.length)];
       }
       update() {
-        this.y -= this.speedY; this.x += Math.sin(this.wobble) * 0.5; this.wobble += this.wobbleSpeed; this.opacity -= 0.002;
+        this.y -= this.speedY; this.x += Math.sin(this.wobble) * 0.3; this.wobble += this.wobbleSpeed; this.opacity -= 0.001;
         if (this.y < -50 || this.opacity <= 0) { this.y = canvas!.height + 20; this.x = Math.random() * canvas!.width; this.opacity = 1; }
       }
       draw() {
-        if (!ctx) return; ctx.save(); ctx.globalAlpha = this.opacity; ctx.fillStyle = this.color; ctx.shadowBlur = 8; ctx.shadowColor = '#b91c1c';
+        if (!ctx) return; ctx.save(); ctx.globalAlpha = this.opacity; ctx.fillStyle = this.color; ctx.shadowBlur = 6; ctx.shadowColor = '#b91c1c';
         ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2); ctx.fill(); ctx.restore();
       }
     }
 
     class BambooLeaf {
-      x: number; y: number; size: number; speedX: number; speedY: number; rotation: number; rotationSpeed: number; sway: number;
+      x: number; y: number; size: number; speedX: number; speedY: number; rotation: number; rotationSpeed: number; sway: number; swaySpeed: number;
       constructor() {
         this.x = Math.random() * canvas!.width; this.y = Math.random() * -canvas!.height; this.size = Math.random() * 8 + 4;
-        this.speedX = Math.random() * 1 - 0.5; this.speedY = Math.random() * 1.5 + 0.5; this.rotation = Math.random() * 360;
-        this.rotationSpeed = (Math.random() - 0.5) * 2; this.sway = 0;
+        this.speedX = Math.random() * 0.2 - 0.1; // Reduced wind
+        this.speedY = Math.random() * 0.6 + 0.3; // Gentle fall
+        this.rotation = Math.random() * 360;
+        this.rotationSpeed = (Math.random() - 0.5) * 0.3; 
+        this.sway = Math.random() * Math.PI * 2;
+        this.swaySpeed = 0.01 + Math.random() * 0.015;
       }
       update() {
-        this.sway += 0.02; this.x += Math.sin(this.sway) * 0.5 + this.speedX; this.y += this.speedY; this.rotation += this.rotationSpeed;
+        this.sway += this.swaySpeed; 
+        // Reduced sway amplitude from 0.5 to 0.2 for more natural drift
+        this.x += Math.sin(this.sway) * 0.2 + this.speedX; 
+        this.y += this.speedY; 
+        // Oscillating rotation creates a "rocking" falling leaf effect
+        this.rotation += this.rotationSpeed + Math.cos(this.sway) * 0.15;
+        
         if (this.y > canvas!.height + 20) { this.y = -20; this.x = Math.random() * canvas!.width; }
       }
       draw() {
@@ -133,10 +148,11 @@ const Background: React.FC<BackgroundProps> = ({ theme, skin }) => {
       x: number; y: number; size: number; speedY: number; sway: number; swayOffset: number; opacity: number;
       constructor() {
         this.x = Math.random() * canvas!.width; this.y = canvas!.height + Math.random() * 100; this.size = Math.random() * 4 + 1;
-        this.speedY = Math.random() * 1 + 0.2; this.sway = 0; this.swayOffset = Math.random() * Math.PI * 2; this.opacity = Math.random() * 0.3 + 0.1;
+        this.speedY = Math.random() * 0.5 + 0.1; // Very slow bubbles
+        this.sway = 0; this.swayOffset = Math.random() * Math.PI * 2; this.opacity = Math.random() * 0.3 + 0.1;
       }
       update() {
-        this.sway += 0.02; this.y -= this.speedY; this.x += Math.sin(this.sway + this.swayOffset) * 0.3;
+        this.sway += 0.01; this.y -= this.speedY; this.x += Math.sin(this.sway + this.swayOffset) * 0.2;
         if (this.y < -20) { this.y = canvas!.height + 20; this.x = Math.random() * canvas!.width; }
       }
       draw() {
@@ -150,7 +166,9 @@ const Background: React.FC<BackgroundProps> = ({ theme, skin }) => {
       x: number; y: number; size: number; maxAlpha: number; alpha: number; flickerSpeed: number; flickerDir: number;
       constructor() {
         this.x = Math.random() * canvas!.width; this.y = Math.random() * canvas!.height; this.size = Math.random() * 2;
-        this.maxAlpha = Math.random() * 0.8 + 0.2; this.alpha = Math.random() * this.maxAlpha; this.flickerSpeed = Math.random() * 0.02 + 0.005; this.flickerDir = 1;
+        this.maxAlpha = Math.random() * 0.8 + 0.2; this.alpha = Math.random() * this.maxAlpha; 
+        this.flickerSpeed = Math.random() * 0.01 + 0.002; // Slower flicker
+        this.flickerDir = 1;
       }
       update() {
         this.alpha += this.flickerSpeed * this.flickerDir;
@@ -166,7 +184,8 @@ const Background: React.FC<BackgroundProps> = ({ theme, skin }) => {
       x: number; y: number; size: number; speedX: number; opacity: number;
       constructor() {
         this.x = Math.random() * canvas!.width; this.y = Math.random() * canvas!.height; this.size = Math.random() * 2 + 0.5;
-        this.speedX = Math.random() * 3 + 1; this.opacity = Math.random() * 0.3 + 0.1;
+        this.speedX = Math.random() * 1.5 + 0.5; // Slow drift
+        this.opacity = Math.random() * 0.3 + 0.1;
       }
       update() { this.x += this.speedX; if (this.x > canvas!.width) { this.x = -10; this.y = Math.random() * canvas!.height; } }
       draw() {
@@ -178,10 +197,13 @@ const Background: React.FC<BackgroundProps> = ({ theme, skin }) => {
       x: number; y: number; size: number; speedY: number; sway: number; swaySpeed: number;
       constructor() {
         this.x = Math.random() * canvas!.width; this.y = Math.random() * -canvas!.height; this.size = Math.random() * 3 + 1;
-        this.speedY = Math.random() * 1 + 0.5; this.sway = Math.random() * Math.PI * 2; this.swaySpeed = Math.random() * 0.05 + 0.01;
+        this.speedY = Math.random() * 0.5 + 0.2; // Gentle snow
+        this.sway = Math.random() * Math.PI * 2; this.swaySpeed = Math.random() * 0.02 + 0.005;
       }
       update() {
-        this.y += this.speedY; this.sway += this.swaySpeed; this.x += Math.sin(this.sway) * 0.5;
+        this.y += this.speedY; this.sway += this.swaySpeed; 
+        // Reduced sway amplitude for snow as well
+        this.x += Math.sin(this.sway) * 0.3;
         if (this.y > canvas!.height) { this.y = -10; this.x = Math.random() * canvas!.width; }
       }
       draw() {
@@ -194,12 +216,13 @@ const Background: React.FC<BackgroundProps> = ({ theme, skin }) => {
       x: number; y: number; speedY: number; value: string; fontSize: number; opacity: number;
       constructor() {
         this.x = Math.floor(Math.random() * (canvas!.width / 15)) * 15; this.y = Math.random() * -canvas!.height;
-        this.speedY = Math.random() * 2 + 2; this.value = Math.random() > 0.5 ? '1' : '0';
+        this.speedY = Math.random() * 1.0 + 0.5; // Slower matrix rain
+        this.value = Math.random() > 0.5 ? '1' : '0';
         this.fontSize = Math.random() * 10 + 10; this.opacity = Math.random() * 0.5 + 0.1;
       }
       update() {
-        this.y += this.speedY; if (Math.random() > 0.95) { this.value = this.value === '1' ? '0' : '1'; }
-        if (this.y > canvas!.height) { this.y = -20; this.x = Math.floor(Math.random() * (canvas!.width / 15)) * 15; this.speedY = Math.random() * 2 + 2; }
+        this.y += this.speedY; if (Math.random() > 0.98) { this.value = this.value === '1' ? '0' : '1'; }
+        if (this.y > canvas!.height) { this.y = -20; this.x = Math.floor(Math.random() * (canvas!.width / 15)) * 15; this.speedY = Math.random() * 1.0 + 0.5; }
       }
       draw() {
         if (!ctx) return; ctx.save(); ctx.fillStyle = '#22d3ee'; ctx.font = `${this.fontSize}px monospace`; ctx.globalAlpha = this.opacity;
@@ -211,10 +234,11 @@ const Background: React.FC<BackgroundProps> = ({ theme, skin }) => {
       x: number; y: number; radius: number; maxRadius: number; opacity: number; growthRate: number;
       constructor() {
         this.x = Math.random() * canvas!.width; this.y = Math.random() * canvas!.height; this.radius = 0;
-        this.maxRadius = Math.random() * 100 + 50; this.opacity = Math.random() * 0.05 + 0.02; this.growthRate = Math.random() * 0.5 + 0.1;
+        this.maxRadius = Math.random() * 100 + 50; this.opacity = Math.random() * 0.05 + 0.02; 
+        this.growthRate = Math.random() * 0.2 + 0.05; // Slow spread
       }
       update() {
-        this.radius += this.growthRate; if (this.radius > this.maxRadius) { this.opacity -= 0.0005; }
+        this.radius += this.growthRate; if (this.radius > this.maxRadius) { this.opacity -= 0.0002; }
         if (this.opacity <= 0) { this.x = Math.random() * canvas!.width; this.y = Math.random() * canvas!.height; this.radius = 0; this.opacity = Math.random() * 0.05 + 0.02; }
       }
       draw() {
@@ -231,8 +255,8 @@ const Background: React.FC<BackgroundProps> = ({ theme, skin }) => {
         this.char = runes[Math.floor(Math.random()*runes.length)];
         this.size = Math.random() * 15 + 10;
         this.rotation = Math.random() * Math.PI*2;
-        this.rotSpeed = (Math.random()-0.5)*0.05;
-        this.vy = Math.random() * -1 - 0.5;
+        this.rotSpeed = (Math.random()-0.5)*0.02;
+        this.vy = Math.random() * -0.5 - 0.2; // Slow rise
       }
       update() {
         this.y += this.vy; this.rotation += this.rotSpeed;
@@ -260,7 +284,7 @@ const Background: React.FC<BackgroundProps> = ({ theme, skin }) => {
     class AuroraParticle {
       x: number; y: number; life: number;
       constructor() { this.x = Math.random()*canvas!.width; this.y = Math.random()*canvas!.height; this.life = Math.random(); }
-      update() { this.life -= 0.005; if(this.life<=0) { this.life=1; this.x=Math.random()*canvas!.width; this.y=Math.random()*canvas!.height; } }
+      update() { this.life -= 0.002; if(this.life<=0) { this.life=1; this.x=Math.random()*canvas!.width; this.y=Math.random()*canvas!.height; } }
       draw() {
         if (!ctx) return;
         ctx.fillStyle = `rgba(134, 239, 172, ${this.life * 0.1})`;
@@ -275,17 +299,17 @@ const Background: React.FC<BackgroundProps> = ({ theme, skin }) => {
         this.x = Math.random() * canvas!.width;
         this.y = Math.random() * canvas!.height;
         this.size = Math.random() * 10 + 5;
-        this.speedY = Math.random() * 1 + 0.5;
+        this.speedY = Math.random() * 0.4 + 0.1; // Drifting
         this.sway = Math.random() * Math.PI * 2;
-        this.swaySpeed = Math.random() * 0.02 + 0.01;
+        this.swaySpeed = Math.random() * 0.01 + 0.005;
         this.rotation = Math.random() * Math.PI * 2;
-        this.rotSpeed = (Math.random() - 0.5) * 0.02;
+        this.rotSpeed = (Math.random() - 0.5) * 0.01;
         this.opacity = Math.random() * 0.5 + 0.3;
       }
       update() {
         this.y += this.speedY;
         this.sway += this.swaySpeed;
-        this.x += Math.sin(this.sway) * 0.5;
+        this.x += Math.sin(this.sway) * 0.3; // Reduced amplitude
         this.rotation += this.rotSpeed;
         if (this.y > canvas!.height + 20) {
           this.y = -20;
@@ -352,7 +376,7 @@ const Background: React.FC<BackgroundProps> = ({ theme, skin }) => {
     const animate = () => {
       if (!ctx || !canvas) return;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      t += 0.005;
+      t += 0.002; // Slower time evolution for gradients
 
       const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
 
